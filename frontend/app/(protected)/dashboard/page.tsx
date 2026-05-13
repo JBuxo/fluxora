@@ -1,25 +1,18 @@
 "use client";
 
+import SupportedDistributorSelector from "@/components/sections/supported-distributor-selector";
 import Loader from "@/components/ui/loader";
 import { useContract } from "@/hooks/use-contract";
-import { notFound, useRouter } from "next/navigation";
-import { supportedDistributors } from "@/lib/data/test-data";
-import Image from "next/image";
-import Link from "next/link";
 
 export default function DashboardPage() {
   const { contract, loading } = useContract();
 
-  if (loading) {
+  if (loading || !contract) {
     return (
       <div className="h-full w-full flex items-center justify-center">
         <Loader />
       </div>
     );
-  }
-
-  if (!contract) {
-    notFound();
   }
 
   // Use for debugging not found contracts
@@ -39,25 +32,7 @@ export default function DashboardPage() {
           through the process of uploading your consumption report.
         </p>
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {supportedDistributors.map((distributor, idx) => (
-            <Link
-              href={
-                "/upload?" +
-                new URLSearchParams({ c: contract.id, i: distributor.id })
-              }
-              key={idx}
-              className="flex flex-col items-center bg-accent py-4 px-2 rounded-md hover:outline hover:outline-outline"
-            >
-              <Image
-                src={distributor.logoUrl}
-                alt={distributor.name}
-                height={128}
-                width={128}
-                unoptimized
-              />
-              <p className="text-sm font-medium mt-auto">{distributor.name}</p>
-            </Link>
-          ))}
+          <SupportedDistributorSelector contractId={contract.id} />
         </div>
       </section>
     </div>

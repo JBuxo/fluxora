@@ -16,11 +16,13 @@ import { Button } from "@/components/ui/button";
 import { ArrowUpRightIcon, UploadIcon } from "lucide-react";
 import GuideComponent from "./guide-component";
 import { guides } from "@/lib/data/guides";
+import { Separator } from "@/components/ui/separator";
+import SupportedDistributorSelector from "@/components/sections/supported-distributor-selector";
 
 export default function UploadPage() {
   const queryParams = useSearchParams();
   const rawId = queryParams.get("i");
-  console.log("Raw distributor ID from query params:", rawId);
+  const contractId = queryParams.get("c");
 
   const distributorId = useMemo(() => {
     if (!rawId) return null;
@@ -28,16 +30,12 @@ export default function UploadPage() {
     return Number.isFinite(n) ? n : null;
   }, [rawId]);
 
-  console.log("Parsed distributor ID:", distributorId);
-
   const distributor = useMemo(() => {
     if (distributorId === null) return null;
     return (
       supportedDistributors.find((d) => Number(d.id) === distributorId) ?? null
     );
   }, [distributorId]);
-
-  console.log("Found distributor:", distributor);
 
   const guide = useMemo(() => {
     if (distributorId === null) return null;
@@ -73,73 +71,95 @@ export default function UploadPage() {
     };
   }, [distributor]);
 
-  if (!rawId) return notFound();
-  if (distributorId === null) return notFound();
-  if (!distributor) return notFound();
+  if (!contractId) {
+    notFound();
+  }
+
+  if (rawId && !distributor) {
+    notFound();
+  }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Upload</h1>
+      <h1 className="text-3xl font-bold">
+        {distributor ? `${distributor.name} Upload` : "Upload"}
+      </h1>
 
-      <section className="mt-6">
-        <h2 className="text-2xl">{distributor.name}</h2>
+      <p className="text-muted-foreground max-w-lg">
+        {!distributor &&
+          "Select your distributor below to continue with the upload process."}
+      </p>
 
-        <p className="text-muted-foreground max-w-lg">
-          Once this countdown is done, a dialog will pop up to take you to the
-          client portal to download your consumption report.
-        </p>
-
-        {countdownProgress > 0 ? (
-          <Progress className="mt-4 h-2" value={countdownProgress} />
-        ) : (
-          <Button
-            className="mt-4 ease-in"
-            onClick={() => {
-              window.open(
-                distributor.portalUrl,
-                "_blank",
-                "noopener,noreferrer",
-              );
-            }}
-          >
-            Go to {distributor.name} <ArrowUpRightIcon />
-          </Button>
-        )}
-
-        <RedirectDialog
-          distributorName={distributor.name}
-          distributorPortalUrl={distributor.portalUrl}
-          open={openDialog}
-          setOpen={setOpenDialog}
-        />
-      </section>
-
-      <section className="mt-6">
-        <div className="bg-muted relative p-8 rounded-md flex flex-col items-center justify-center text-muted-foreground border">
-          <UploadIcon className="w-8 h-8 mb-2" strokeWidth={1.25} />
-          Drop your files here or click to upload
+      {!distributor ? (
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <SupportedDistributorSelector contractId={contractId} />
         </div>
-      </section>
+      ) : (
+        <>
+          <section className="mt-6">
+            <h2 className="text-2xl">Up Next</h2>
 
-      <section className="mt-18">
-        <h2 className="text-2xl">Guide</h2>
+            <p className="text-muted-foreground max-w-lg">
+              {distributor
+                ? "Once this countdown is done, a dialog will pop up to take you to the client portal to download your consumption report. Look at the guide if you need some help!"
+                : "Select your distributor below to continue with the upload process."}
+            </p>
 
-        <p className="text-muted-foreground max-w-lg">
-          Here&apos;s a step by step guide on how to get your consumption report
-          from {distributor.name}. Follow the instructions to get your report to
-          upload.
-        </p>
+            {countdownProgress > 0 ? (
+              <Progress className="mt-4 h-2" value={countdownProgress} />
+            ) : (
+              <Button
+                className="mt-4 ease-in"
+                onClick={() => {
+                  window.open(
+                    distributor.portalUrl,
+                    "_blank",
+                    "noopener,noreferrer",
+                  );
+                }}
+              >
+                Go to {distributor.name} <ArrowUpRightIcon />
+              </Button>
+            )}
 
-        <div className="mt-6">
-          {guide ? (
-            <GuideComponent guide={guide} />
-          ) : (
-            <div className="rounded-md bg-muted px-6 py-4 text-muted-foreground text-center">
-              No guide available for this distributor yet.
+            <RedirectDialog
+              distributorName={distributor.name}
+              distributorPortalUrl={distributor.portalUrl}
+              open={openDialog}
+              setOpen={setOpenDialog}
+            />
+          </section>
+
+          <section className="mt-6">
+            <div className="bg-muted relative p-8 rounded-md flex flex-col items-center justify-center text-muted-foreground border">
+              <UploadIcon className="w-8 h-8 mb-2" strokeWidth={1.25} />
+              Drop your files here or click to upload
             </div>
-          )}
-        </div>
-      </section>
+          </section>
+
+          <section className="mt-18">
+            <h2 className="text-2xl">Guide</h2>
+
+            <p className="text-muted-foreground max-w-lg">
+              Here&apos;s a step by step guide on how to get your consumption
+              report from {distributor.name}. Follow the instructions to get
+              your report to upload.
+            </p>
+
+            {guide && <Separator className="mt-6" />}
+
+            <div>
+              {guide ? (
+                <GuideComponent guide={guide} />
+              ) : (
+                <div className="rounded-md bg-muted px-6 py-4 text-muted-foreground text-center mt-6">
+                  No guide available for this distributor yet.
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

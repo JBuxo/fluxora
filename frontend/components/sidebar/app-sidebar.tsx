@@ -19,8 +19,9 @@ import {
   ChartColumnBigIcon,
 } from "lucide-react";
 import { contracts, reports } from "@/lib/data/test-data";
+import { withContractParam } from "@/lib/utils";
+import { useSearchParams, usePathname } from "next/navigation";
 
-// This is sample data. Should Pull from supabase
 const data = {
   user: {
     name: "shadcn",
@@ -33,11 +34,15 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: <TerminalSquareIcon />,
-      isActive: true,
     },
     {
       title: "Analytics",
       url: "/analytics",
+      icon: <BookOpenIcon />,
+    },
+    {
+      title: "Upload",
+      url: "/upload",
       icon: <BookOpenIcon />,
     },
     {
@@ -48,19 +53,31 @@ const data = {
   ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+  const searchParams = useSearchParams();
+
+  const contractId = searchParams.get("c");
+
+  const navMainWithContract = data.navMain.map((item) => ({
+    ...item,
+    url: contractId ? withContractParam(item.url, contractId) : item.url,
+  }));
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <ContractSwitcher contracts={contracts} />
       </SidebarHeader>
+
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMainWithContract} />
         <NavReports reports={reports} />
       </SidebarContent>
+
       <SidebarFooter>
         <NavUser user={data.user} />
       </SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
   );
