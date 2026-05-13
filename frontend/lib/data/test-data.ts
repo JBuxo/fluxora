@@ -6,6 +6,7 @@ import {
   TerminalIcon,
 } from "lucide-react";
 import { Distributor } from "@/types/distributor";
+import { KPI } from "@/types/analytics";
 
 export const contracts: Contract[] = [
   {
@@ -67,5 +68,32 @@ export const supportedDistributors: Distributor[] = [
     portalUrl: "https://www.naturgy.com/",
     logoUrl:
       "https://cdn.brandfetch.io/idsrKBdQQF/w/202/h/56/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1773467012288",
+  },
+];
+
+export const kpis: KPI[] = [
+  {
+    title: "Total Consumption",
+    description: "Selected period",
+    value: "10.2 MWh",
+    hint: "Derived from uploaded historical reports",
+  },
+  {
+    title: "Consumption Trend",
+    description: "vs previous period",
+    value: "+5.3%",
+    hint: "Based on historical comparison",
+  },
+  {
+    title: "Total Cost",
+    description: "Selected period",
+    value: "€1,240",
+    hint: "Aggregated from distributor reports",
+  },
+  {
+    title: "Forecasted Cost",
+    description: "End of period estimate",
+    value: "€1,380",
+    hint: "Projected from historical trends",
   },
 ];

@@ -17,7 +17,7 @@ export default function ProtectedRootLayout({
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="fixed flex h-16 shrink-0 items-center bg-background w-full gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 mask-[linear-gradient(to_bottom,black_80%,transparent_100%)]">
+        <header className="z-99999 fixed flex h-16 shrink-0 items-center bg-background w-full gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 ">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator

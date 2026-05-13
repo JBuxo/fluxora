@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { contracts, reports } from "@/lib/data/test-data";
 import { withContractParam } from "@/lib/utils";
-import { useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 const data = {
   user: {
