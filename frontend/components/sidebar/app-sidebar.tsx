@@ -40,11 +40,11 @@ const data = {
       url: "/analytics",
       icon: <BookOpenIcon />,
     },
-    {
-      title: "Upload",
-      url: "/upload",
-      icon: <BookOpenIcon />,
-    },
+    // {
+    //   title: "Upload",
+    //   url: "/upload",
+    //   icon: <BookOpenIcon />,
+    // },
     {
       title: "Reports",
       url: "/reports",

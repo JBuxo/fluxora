@@ -97,3 +97,5 @@ export const kpis: KPI[] = [
     hint: "Projected from historical trends",
   },
 ];
+
+export const hasDatadis: boolean = false;

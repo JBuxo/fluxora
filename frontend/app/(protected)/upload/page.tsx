@@ -1,7 +1,7 @@
 "use client";
 
 import { Progress } from "@/components/ui/progress";
-import { notFound, useSearchParams } from "next/navigation";
+import { notFound, permanentRedirect, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supportedDistributors } from "@/lib/data/test-data";
 import {
@@ -20,6 +20,8 @@ import { Separator } from "@/components/ui/separator";
 import SupportedDistributorSelector from "@/components/sections/supported-distributor-selector";
 
 export default function UploadPage() {
+  const disabled: boolean = true;
+
   const queryParams = useSearchParams();
   const rawId = queryParams.get("i");
   const contractId = queryParams.get("c");
@@ -77,6 +79,11 @@ export default function UploadPage() {
 
   if (rawId && !distributor) {
     notFound();
+  }
+
+  // Re-enable if we ever want manual uploads
+  if (disabled) {
+    return permanentRedirect("/dashboard", "replace");
   }
 
   return (

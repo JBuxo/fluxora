@@ -22,6 +22,8 @@ import { Anomaly } from "@/types/anomaly";
 import { AnomalyScatterChart } from "./_components/anomaly-scatter-chart";
 import { ConfidenceBandChart } from "./_components/confidence-band-chart";
 import { RecommendationEngine } from "./_components/recommendation-section";
+import { hasDatadis } from "@/lib/data/test-data";
+import ConfigWizard from "@/components/sections/config-wizard";
 
 const anomalies: Anomaly[] = [
   { date: "2026-01-03", deviation: 42, reason: "Spike in evening usage" },
@@ -35,6 +37,10 @@ export default function DashboardPage() {
     from: new Date(new Date().getFullYear(), 0, 20),
     to: addDays(new Date(new Date().getFullYear(), 0, 20), 20),
   });
+
+  if (!hasDatadis) {
+    return <ConfigWizard />;
+  }
 
   if (loading || !contract) {
     return (
@@ -54,7 +60,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">{contract.name}</h1>
 
-      <section>
+      {/* <section>
         <h2 className="text-2xl">Upload</h2>
         <p className="text-muted-foreground max-w-lg">
           Select your distributor from the options below and we will guide you
@@ -63,7 +69,7 @@ export default function DashboardPage() {
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
           <SupportedDistributorSelector contractId={contract.id} />
         </div>
-      </section>
+      </section> */}
 
       {/* 1. HISTORICAL KPI OVERVIEW (PRIMARY SNAPSHOT) */}
       <section>

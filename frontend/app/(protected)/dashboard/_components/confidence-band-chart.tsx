@@ -44,7 +44,7 @@ const data = Array.from({ length: 30 }).map((_, i) => {
 });
 
 const config = {
-  actual: { label: "Actual", color: "var(--chart-1)" },
+  actual: { label: "Actual", color: "var(--chart-3)" },
   range: { label: "Expected range", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 

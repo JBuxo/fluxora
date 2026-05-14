@@ -1,6 +1,7 @@
 "use client";
 
-import { Scatter, ScatterChart, XAxis, YAxis, CartesianGrid } from "recharts";
+import { Line, LineChart, XAxis, YAxis, CartesianGrid } from "recharts";
+import type { DotProps } from "recharts";
 
 import {
   Card,
@@ -19,39 +20,70 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
-const data = Array.from({ length: 60 }).map((_, i) => {
+type AnomalyDotProps = DotProps & {
+  payload?: DataPoint;
+};
+
+type DataPoint = {
+  x: number;
+  expected: number;
+  actual: number;
+  anomaly: boolean;
+};
+
+const rawData = Array.from({ length: 60 }).map((_, i) => {
   const base = 50 + Math.sin(i / 6) * 10;
   const anomaly = i % 19 === 0;
 
   return {
     x: i,
-    value: anomaly ? base * 1.7 : base,
-    type: anomaly ? "anomaly" : "normal",
+    expected: base,
+    actual: anomaly ? base * 1.7 : base,
+    anomaly,
   };
 });
 
 const chartConfig = {
-  normal: {
-    label: "Normal",
+  expected: {
+    label: "Expected",
     color: "var(--chart-1)",
   },
-  anomaly: {
-    label: "Anomaly",
+  actual: {
+    label: "Actual",
     color: "var(--chart-3)",
   },
 } satisfies ChartConfig;
+
+function AnomalyDot({ cx, cy, payload }: AnomalyDotProps) {
+  if (!cx || !cy) return null;
+  if (!payload?.anomaly) return null;
+
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={5}
+      fill="var(--chart-3)"
+      stroke="white"
+      strokeWidth={2}
+    />
+  );
+}
 
 export function AnomalyScatterChart() {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Anomalies</CardTitle>
-        <CardDescription>Historical consumption outliers</CardDescription>
+        <CardDescription>Historical consumption monitoring</CardDescription>
       </CardHeader>
 
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-75 w-full">
-          <ScatterChart margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+        <ChartContainer config={chartConfig} className="h-80 w-full">
+          <LineChart
+            data={rawData}
+            margin={{ top: 10, right: 10, bottom: 0, left: -10 }}
+          >
             <CartesianGrid vertical={false} />
 
             <XAxis
@@ -62,39 +94,42 @@ export function AnomalyScatterChart() {
               tickMargin={8}
               tickFormatter={(v) => `T${v}`}
             />
-            <YAxis
-              dataKey="value"
-              type="number"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-            />
+
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
 
             <ChartTooltip
+              content={<ChartTooltipContent className="min-w-40 " />}
               cursor={false}
-              content={
-                <ChartTooltipContent
-                  indicator="dot"
-                  labelKey="x"
-                  nameKey="type"
-                />
-              }
+              defaultIndex={1}
+              payloadUniqBy
             />
 
             <ChartLegend content={<ChartLegendContent />} />
 
-            <Scatter
-              name="normal"
-              data={data.filter((d) => d.type === "normal")}
-              fill="var(--color-normal)"
+            {/* Expected */}
+            <Line
+              dataKey="expected"
+              stroke="var(--chart-1)"
+              strokeWidth={2}
+              dot={false}
             />
 
-            <Scatter
-              name="anomaly"
-              data={data.filter((d) => d.type === "anomaly")}
-              fill="var(--color-anomaly)"
+            {/* Actual */}
+            <Line
+              dataKey="actual"
+              stroke="var(--chart-3)"
+              strokeWidth={2}
+              dot={false}
             />
-          </ScatterChart>
+
+            {/* Anomaly markers (on actual only) */}
+            <Line
+              dataKey="actual"
+              stroke="transparent"
+              dot={<AnomalyDot />}
+              activeDot={false}
+            />
+          </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>
