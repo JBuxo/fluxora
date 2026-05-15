@@ -1,24 +1,25 @@
-"use client";
+// "use client";
 
-import { useEffect, useState } from "react";
+import { redirect } from "next/navigation";
 
-interface HealthData {
-  status?: string;
-}
+// import { useEffect, useState } from "react";
 
-export default function Home() {
-  const [healthData, setHealthData] = useState<HealthData | null>(null);
+// interface HealthData {
+//   status?: string;
+// }
 
-  useEffect(() => {
-    fetch("/api/health")
-      .then((response) => response.json())
-      .then((data) => setHealthData(data))
-      .catch((error) => console.error("Error fetching health check:", error));
-  }, []);
-
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      {healthData && <p>Health Check: {healthData.status}</p>}
-    </div>
-  );
+export default function EntryHandler() {
+  // const [healthData, setHealthData] = useState<HealthData | null>(null);
+  // useEffect(() => {
+  //   fetch("/api/health")
+  //     .then((response) => response.json())
+  //     .then((data) => setHealthData(data))
+  //     .catch((error) => console.error("Error fetching health check:", error));
+  // }, []);
+  // return (
+  //   <div className="flex flex-col flex-1 items-center justify-center">
+  //     {healthData && <p>Health Check: {healthData.status}</p>}
+  //   </div>
+  // );
+  return redirect("/home");
 }
