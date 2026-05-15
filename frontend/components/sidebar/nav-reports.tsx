@@ -16,7 +16,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ConsumptionReport } from "@/types/consumption-report";
+import { ConsumptionReport } from "@/lib/types/ui";
 import {
   MoreHorizontalIcon,
   FolderIcon,

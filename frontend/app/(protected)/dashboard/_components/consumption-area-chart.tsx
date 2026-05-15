@@ -17,11 +17,9 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import type { MonthlyDataPoint } from "@/lib/types/api";
 
-export const description =
-  "Cumulative energy cost over time based on historical consumption";
-
-const chartData = [
+const fallbackData = [
   { month: "January", cost: 186 },
   { month: "February", cost: 305 },
   { month: "March", cost: 237 },
@@ -32,18 +30,24 @@ const chartData = [
 
 const chartConfig = {
   cost: {
-    label: "Cost",
+    label: "Cost (€)",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
-export function CumulativeCostAreaChart() {
+interface Props {
+  data?: MonthlyDataPoint[];
+}
+
+export function CumulativeCostAreaChart({ data }: Props) {
+  const chartData = data && data.length > 0 ? data : fallbackData;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Energy Cost Trend</CardTitle>
         <CardDescription>
-          Cumulative cost based on historical reports
+          Monthly cost from consumption records
         </CardDescription>
       </CardHeader>
 

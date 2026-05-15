@@ -17,11 +17,9 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import type { MonthlyDataPoint } from "@/lib/types/api";
 
-export const description =
-  "Energy consumption trend chart with historical monthly data";
-
-const chartData = [
+const fallbackData = [
   { month: "January", consumption: 186, previous: 165 },
   { month: "February", consumption: 305, previous: 260 },
   { month: "March", consumption: 237, previous: 220 },
@@ -32,7 +30,7 @@ const chartData = [
 
 const chartConfig = {
   consumption: {
-    label: "Consumption",
+    label: "Consumption (kWh)",
     color: "var(--chart-1)",
   },
   previous: {
@@ -41,7 +39,13 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function ConsumptionTrendLineChart() {
+interface Props {
+  data?: MonthlyDataPoint[];
+}
+
+export function ConsumptionTrendLineChart({ data }: Props) {
+  const chartData = data && data.length > 0 ? data : fallbackData;
+
   return (
     <Card>
       <CardHeader>
@@ -112,11 +116,11 @@ export function ConsumptionTrendLineChart() {
 
       <CardFooter className="flex-col items-start gap-2 text-sm">
         <div className="flex gap-2 leading-none font-medium">
-          Consumption trend stable with slight increase{" "}
+          Monthly consumption vs previous period{" "}
           <TrendingUp className="h-4 w-4" />
         </div>
         <div className="leading-none text-muted-foreground">
-          Based on uploaded historical distributor reports
+          From Datadis consumption records
         </div>
       </CardFooter>
     </Card>

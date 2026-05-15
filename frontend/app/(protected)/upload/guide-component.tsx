@@ -1,4 +1,4 @@
-import { Guide } from "@/types/guide";
+import { Guide } from "@/lib/types/ui";
 import Image from "next/image";
 
 export default function GuideComponent({ guide }: { guide: Guide }) {

@@ -1,7 +1,5 @@
 "use client";
 
-import * as React from "react";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +19,7 @@ import { ChevronsUpDownIcon, PlusIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/lib/types/ui";
 
 export function ContractSwitcher({ contracts }: { contracts: Contract[] }) {
   const { isMobile } = useSidebar();
