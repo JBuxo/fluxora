@@ -48,14 +48,17 @@ def clear(session: Session) -> None:
 
 def seed(session: Session) -> None:
     # ── Users ────────────────────────────────────────────────────────────────
+    JOSE_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+    ANA_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
+
     jose = User(
-        id=uuid.uuid4(),
+        id=JOSE_ID,
         email="jose@fluxora.dev",
         first_name="Jose",
         last_name="Buxo",
     )
     ana = User(
-        id=uuid.uuid4(),
+        id=ANA_ID,
         email="ana@fluxora.dev",
         first_name="Ana",
         last_name="García",
@@ -152,15 +155,15 @@ def seed(session: Session) -> None:
     session.add_all(contracts)
     session.flush()
 
-    # ── Consumption Records (30 days, hourly for sp1; daily for sp2/sp3) ──────
+    # ── Consumption Records (90 days, hourly for sp1; daily for sp2/sp3) ──────
     records = []
-    base = utcnow().replace(minute=0, second=0, microsecond=0) - timedelta(days=30)
+    DAYS = 90
+    base = utcnow().replace(minute=0, second=0, microsecond=0) - timedelta(days=DAYS)
 
     # sp1 — hourly, realistic residential pattern
-    for hour_offset in range(30 * 24):
+    for hour_offset in range(DAYS * 24):
         ts = base + timedelta(hours=hour_offset)
         hour = ts.hour
-        # low at night, peaks morning/evening
         base_kwh = 0.1 + (0.4 if 7 <= hour <= 9 else 0.0) + (0.5 if 19 <= hour <= 22 else 0.0)
         kwh = round(base_kwh + uniform(0, 0.15), 3)
         records.append(ConsumptionRecord(
@@ -172,7 +175,7 @@ def seed(session: Session) -> None:
         ))
 
     # sp2 — daily office consumption
-    for day_offset in range(30):
+    for day_offset in range(DAYS):
         ts = base + timedelta(days=day_offset)
         is_weekend = ts.weekday() >= 5
         kwh = round(uniform(1.5, 3.0) if is_weekend else uniform(12.0, 22.0), 3)
@@ -185,7 +188,7 @@ def seed(session: Session) -> None:
         ))
 
     # sp3 — daily residential
-    for day_offset in range(30):
+    for day_offset in range(DAYS):
         ts = base + timedelta(days=day_offset)
         kwh = round(uniform(3.0, 9.0), 3)
         records.append(ConsumptionRecord(

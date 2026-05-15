@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import homes, supply_points, users
+from app.routes import analytics, homes, report, supply_points, users
 
 app = FastAPI()
 
@@ -16,6 +16,8 @@ app.add_middleware(
 app.include_router(users.router)
 app.include_router(homes.router)
 app.include_router(supply_points.router)
+app.include_router(analytics.router)
+app.include_router(report.router)
 
 
 @app.get("/health")

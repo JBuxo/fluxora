@@ -1,4 +1,4 @@
-import { Guide } from "@/types/guide";
+import { Guide } from "@/lib/types/ui";
 import { iberdrolaGuide } from "./iberdrola-guide";
 // import { naturgyGuide } from "./naturgy-guide";
 // import { endesaGuide } from "./endesa-guide";

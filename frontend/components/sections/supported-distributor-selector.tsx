@@ -1,5 +1,5 @@
 import { supportedDistributors } from "@/lib/data/test-data";
-import { Contract } from "@/types/contract";
+import { Contract } from "@/lib/types/ui";
 import Image from "next/image";
 import Link from "next/link";
 

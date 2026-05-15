@@ -11,19 +11,17 @@ import {
 } from "@/components/ui/card";
 import Loader from "@/components/ui/loader";
 import { useContract } from "@/hooks/use-contract";
-import { kpis } from "@/lib/data/test-data";
+import { useConsumptionAnalytics } from "@/hooks/use-consumption-analytics";
 import { addDays } from "date-fns";
 import React from "react";
 import { DateRange } from "react-day-picker";
 import { ConsumptionTrendLineChart } from "./_components/consumption-line-chart";
 import { CumulativeCostAreaChart } from "./_components/consumption-area-chart";
 import UsageHeatmap from "./_components/usage-heatmap";
-import { Anomaly } from "@/types/anomaly";
+import { Anomaly } from "@/lib/types/ui";
 import { AnomalyScatterChart } from "./_components/anomaly-scatter-chart";
 import { ConfidenceBandChart } from "./_components/confidence-band-chart";
 import { RecommendationEngine } from "./_components/recommendation-section";
-import { hasDatadis } from "@/lib/data/test-data";
-import ConfigWizard from "@/components/sections/config-wizard";
 
 const anomalies: Anomaly[] = [
   { date: "2026-01-03", deviation: 42, reason: "Spike in evening usage" },
@@ -32,15 +30,12 @@ const anomalies: Anomaly[] = [
 ];
 
 export default function DashboardPage() {
-  const { contract, loading } = useContract();
+  const { contract, contractId, loading } = useContract();
+  const { summary, monthly, heatmap, loading: analyticsLoading } = useConsumptionAnalytics(contractId);
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(new Date().getFullYear(), 0, 20),
     to: addDays(new Date(new Date().getFullYear(), 0, 20), 20),
   });
-
-  if (!hasDatadis) {
-    return <ConfigWizard />;
-  }
 
   if (loading || !contract) {
     return (
@@ -85,7 +80,34 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-          {kpis.map((kpi) => (
+          {[
+            {
+              title: "Total Consumption",
+              description: "Last 30 days",
+              value: summary ? `${(summary.total_kwh / 1000).toFixed(2)} MWh` : "—",
+              hint: analyticsLoading ? "Loading…" : `${summary?.record_count ?? 0} records`,
+            },
+            {
+              title: "Consumption Trend",
+              description: "vs previous period",
+              value: summary
+                ? `${summary.trend_pct >= 0 ? "+" : ""}${summary.trend_pct.toFixed(1)}%`
+                : "—",
+              hint: "Compared to equivalent prior period",
+            },
+            {
+              title: "Total Cost",
+              description: "Last 30 days",
+              value: summary ? `€${summary.total_cost.toFixed(0)}` : "—",
+              hint: "Estimated from consumption records",
+            },
+            {
+              title: "Forecasted Cost",
+              description: "30-day projection",
+              value: summary ? `€${summary.forecasted_monthly_cost.toFixed(0)}` : "—",
+              hint: "Based on current daily average",
+            },
+          ].map((kpi) => (
             <Card key={kpi.title}>
               <CardHeader>
                 <CardTitle>{kpi.title}</CardTitle>
@@ -111,8 +133,8 @@ export default function DashboardPage() {
         </p>
 
         <div className="mt-4 grid lg:grid-cols-2 gap-4">
-          <ConsumptionTrendLineChart />
-          <CumulativeCostAreaChart />
+          <ConsumptionTrendLineChart data={monthly} />
+          <CumulativeCostAreaChart data={monthly} />
         </div>
       </section>
 
@@ -128,7 +150,7 @@ export default function DashboardPage() {
         </p>
 
         <div className="mt-4">
-          <UsageHeatmap />
+          <UsageHeatmap data={heatmap} />
         </div>
       </section>
 
