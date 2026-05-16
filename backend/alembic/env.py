@@ -9,7 +9,7 @@ from sqlmodel import SQLModel
 
 from alembic import context
 
-load_dotenv()
+load_dotenv(".env.local")
 
 config = context.config
 
