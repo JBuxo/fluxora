@@ -3,7 +3,7 @@ import jwt
 from dotenv import load_dotenv
 from fastapi import HTTPException, Header
 
-load_dotenv()
+load_dotenv(".env.local")
 
 SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET")
 
