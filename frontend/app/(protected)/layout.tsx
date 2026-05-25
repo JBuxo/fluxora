@@ -33,7 +33,7 @@ export default function ProtectedRootLayout({
             <HeaderBreadcrumb />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 mt-16 max-w-5xl mx-auto w-full">
+        <div className="flex flex-1 flex-col gap-4 p-4 pb-16 pt-0 mt-16 max-w-5xl mx-auto w-full">
           {children}
         </div>
       </SidebarInset>
