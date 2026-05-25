@@ -2,21 +2,21 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
+} from "../ui/field";
+import { cn } from "@/lib/utils";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Card } from "../ui/card";
 
 const GRAD = "linear-gradient(135deg, #CA2BFA 0%, #0132E9 50%, #00DBFB 100%)";
 
-export function LoginForm({
+export function RegisterForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
@@ -28,11 +28,11 @@ export function LoginForm({
             <Link href="/home" className="flex flex-col items-center gap-2">
               <Image src="/logo.png" alt="Fluxora" width={36} height={36} />
             </Link>
-            <h1 className="text-xl font-bold">Accede a Fluxora</h1>
+            <h1 className="text-xl font-bold">Crea tu cuenta en Fluxora</h1>
             <FieldDescription>
               Te enviaremos un enlace mágico para acceder.{" "}
-              <Link href="/register" className="underline underline-offset-4">
-                ¿No tienes cuenta?
+              <Link href="/login" className="underline underline-offset-4">
+                ¿Ya tienes cuenta?
               </Link>
             </FieldDescription>
           </div>
