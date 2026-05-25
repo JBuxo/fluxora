@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from .home import Home
     from .contract import Contract
     from .consumption_record import ConsumptionRecord
+    from .max_power_record import MaxPowerRecord
 
 
 class SupplyPoint(SQLModel, table=True):
@@ -27,3 +28,4 @@ class SupplyPoint(SQLModel, table=True):
     home: Optional["Home"] = Relationship(back_populates="supply_points")
     contracts: List["Contract"] = Relationship(back_populates="supply_point")
     consumption_records: List["ConsumptionRecord"] = Relationship(back_populates="supply_point")
+    max_power_records: List["MaxPowerRecord"] = Relationship(back_populates="supply_point")
