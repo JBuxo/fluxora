@@ -13,7 +13,7 @@ from app.models.enums import ContractStatus
 
 class HomeCreate(BaseModel):
     name: str
-    address: str
+    address: str = ""
 
 
 router = APIRouter(prefix="/homes", tags=["homes"])

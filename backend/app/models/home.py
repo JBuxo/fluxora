@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 if TYPE_CHECKING:
     from .user import User
     from .supply_point import SupplyPoint
+    from .usage_profile import UsageProfile
 
 
 class Home(SQLModel, table=True):
@@ -21,3 +22,4 @@ class Home(SQLModel, table=True):
 
     user: Optional["User"] = Relationship(back_populates="homes")
     supply_points: List["SupplyPoint"] = Relationship(back_populates="home")
+    usage_profile: Optional["UsageProfile"] = Relationship(back_populates="home")

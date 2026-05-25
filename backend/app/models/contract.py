@@ -20,6 +20,11 @@ class Contract(SQLModel, table=True):
     end_date: Optional[date] = None
     tariff_name: str
     power_kw: Optional[float] = None
+    # Enriched from Datadis get_contract_detail
+    code_fare: Optional[str] = None          # e.g. "2.0TD"
+    contracted_powers_kw: Optional[str] = None  # JSON-encoded list of floats per period
+    time_discrimination: Optional[str] = None   # e.g. "DHA", "DHS", or None
+    marketer: Optional[str] = None
     status: ContractStatus = Field(default=ContractStatus.active)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

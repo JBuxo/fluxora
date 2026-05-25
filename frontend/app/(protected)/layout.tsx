@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import HeaderBreadcrumb from "@/components/sidebar/header-breadcrumb";
 
@@ -8,11 +9,16 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
+// TODO: replace with real check (e.g. fetch user profile from DB)
+const isOnboarded = true;
+
 export default function ProtectedRootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  if (!isOnboarded) redirect("/setup");
+
   return (
     <SidebarProvider>
       <AppSidebar />

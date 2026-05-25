@@ -22,6 +22,7 @@ import { Anomaly } from "@/lib/types/ui";
 import { AnomalyScatterChart } from "./_components/anomaly-scatter-chart";
 import { ConfidenceBandChart } from "./_components/confidence-band-chart";
 import { RecommendationEngine } from "./_components/recommendation-section";
+import ConfigWizard from "@/components/sections/config-wizard";
 
 const anomalies: Anomaly[] = [
   { date: "2026-01-03", deviation: 42, reason: "Spike in evening usage" },
@@ -31,11 +32,22 @@ const anomalies: Anomaly[] = [
 
 export default function DashboardPage() {
   const { contract, contractId, loading } = useContract();
-  const { summary, monthly, heatmap, loading: analyticsLoading } = useConsumptionAnalytics(contractId);
+  const {
+    summary,
+    monthly,
+    heatmap,
+    loading: analyticsLoading,
+  } = useConsumptionAnalytics(contractId);
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(new Date().getFullYear(), 0, 20),
     to: addDays(new Date(new Date().getFullYear(), 0, 20), 20),
   });
+
+  const isConfigComplete = true; //Based on contract data
+
+  if (!isConfigComplete) {
+    return <ConfigWizard />;
+  }
 
   if (loading || !contract) {
     return (
@@ -55,17 +67,6 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">{contract.name}</h1>
 
-      {/* <section>
-        <h2 className="text-2xl">Upload</h2>
-        <p className="text-muted-foreground max-w-lg">
-          Select your distributor from the options below and we will guide you
-          through the process of uploading your consumption report.
-        </p>
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <SupportedDistributorSelector contractId={contract.id} />
-        </div>
-      </section> */}
-
       {/* 1. HISTORICAL KPI OVERVIEW (PRIMARY SNAPSHOT) */}
       <section>
         <h2 className="text-2xl">Overview</h2>
@@ -84,8 +85,12 @@ export default function DashboardPage() {
             {
               title: "Total Consumption",
               description: "Last 30 days",
-              value: summary ? `${(summary.total_kwh / 1000).toFixed(2)} MWh` : "—",
-              hint: analyticsLoading ? "Loading…" : `${summary?.record_count ?? 0} records`,
+              value: summary
+                ? `${(summary.total_kwh / 1000).toFixed(2)} MWh`
+                : "—",
+              hint: analyticsLoading
+                ? "Loading…"
+                : `${summary?.record_count ?? 0} records`,
             },
             {
               title: "Consumption Trend",
@@ -104,7 +109,9 @@ export default function DashboardPage() {
             {
               title: "Forecasted Cost",
               description: "30-day projection",
-              value: summary ? `€${summary.forecasted_monthly_cost.toFixed(0)}` : "—",
+              value: summary
+                ? `€${summary.forecasted_monthly_cost.toFixed(0)}`
+                : "—",
               hint: "Based on current daily average",
             },
           ].map((kpi) => (
