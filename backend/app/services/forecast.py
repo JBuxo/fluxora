@@ -29,6 +29,52 @@ def _wfh_to_float(value: str | None) -> float:
     return mapping.get((value or "").lower(), 0.0)
 
 
+def _heating_to_float(value: str | None) -> float:
+    if not value:
+        return 0.0
+    v = value.lower()
+    if "electric" in v or "heat pump" in v:
+        return 1.0
+    return 0.0
+
+
+def _hot_water_to_float(value: str | None) -> float:
+    if not value:
+        return 0.0
+    v = value.lower()
+    if "electric boiler" in v:
+        return 1.0
+    if "heat pump" in v:
+        return 0.7
+    if "solar" in v:
+        return 0.1
+    return 0.0
+
+
+def _appliances_to_float(value: list | None) -> float:
+    if not value:
+        return 0.0
+    weights = {
+        "electric vehicle": 3.0,
+        "air conditioning": 2.0,
+        "tumble dryer": 1.0,
+        "dishwasher": 0.5,
+        "solar panels": -1.0,
+    }
+    total = 0.0
+    for item in value:
+        total += weights.get(item.lower(), 0.3)
+    return total
+
+
+def _active_hours(wake: str | None, sleep: str | None) -> float:
+    wake_map = {"before 7:00": 6.0, "7:00–9:00": 8.0, "after 9:00": 10.0}
+    sleep_map = {"before 23:00": 22.0, "23:00–01:00": 24.0, "after 01:00": 26.0}
+    w = wake_map.get((wake or "").lower(), 7.5)
+    s = sleep_map.get((sleep or "").lower(), 23.0)
+    return max(s - w, 8.0)
+
+
 def run_forecast(home_id: uuid.UUID, session: Session) -> int:
     supply_point_ids = [
         sp.id
@@ -53,11 +99,20 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
         select(UsageProfile).where(UsageProfile.home_id == home_id)
     ).first()
 
-    occupants = _occupants_to_float(profile.occupants if profile else None)
-    wfh = _wfh_to_float(profile.work_from_home if profile else None)
+    p = profile
+    occupants = _occupants_to_float(p.occupants if p else None)
+    wfh = _wfh_to_float(p.work_from_home if p else None)
+    heating = _heating_to_float(p.heating_type if p else None)
+    hot_water = _hot_water_to_float(p.hot_water if p else None)
+    appliances = _appliances_to_float(p.appliances if p else None)
+    active_hrs = _active_hours(p.wake_time if p else None, p.sleep_time if p else None)
 
     df["occupants"] = occupants
     df["work_from_home"] = wfh
+    df["heating_load"] = heating
+    df["electric_hot_water"] = hot_water
+    df["appliance_load"] = appliances
+    df["active_hours"] = active_hrs
 
     model = Prophet(
         yearly_seasonality=True,
@@ -67,6 +122,10 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
     )
     model.add_regressor("occupants")
     model.add_regressor("work_from_home")
+    model.add_regressor("heating_load")
+    model.add_regressor("electric_hot_water")
+    model.add_regressor("appliance_load")
+    model.add_regressor("active_hours")
     model.fit(df)
 
     now = datetime.now(timezone.utc)
@@ -78,6 +137,10 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
     future = pd.DataFrame({"ds": future_dates})
     future["occupants"] = occupants
     future["work_from_home"] = wfh
+    future["heating_load"] = heating
+    future["electric_hot_water"] = hot_water
+    future["appliance_load"] = appliances
+    future["active_hours"] = active_hrs
 
     forecast = model.predict(future)
 
@@ -113,7 +176,7 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
         upserted += 1
 
     # ── Historical anomaly detection ─────────────────────────────────────────
-    hist = df[["ds", "y", "occupants", "work_from_home"]].copy()
+    hist = df[["ds", "y", "occupants", "work_from_home", "heating_load", "electric_hot_water", "appliance_load", "active_hours"]].copy()
     hist_pred = model.predict(hist)
 
     residuals = df["y"].values - hist_pred["yhat"].values
