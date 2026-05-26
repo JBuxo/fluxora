@@ -18,15 +18,10 @@ import { DateRange } from "react-day-picker";
 import { ConsumptionTrendLineChart } from "./_components/consumption-line-chart";
 import { CumulativeCostAreaChart } from "./_components/consumption-area-chart";
 import UsageHeatmap from "./_components/usage-heatmap";
-import { Anomaly } from "@/lib/types/ui";
 import { AnomalyScatterChart } from "./_components/anomaly-scatter-chart";
 import { ConfidenceBandChart } from "./_components/confidence-band-chart";
 import { RecommendationEngine } from "./_components/recommendation-section";
-const anomalies: Anomaly[] = [
-  { date: "2026-01-03", deviation: 42, reason: "Spike in evening usage" },
-  { date: "2026-01-10", deviation: 38, reason: "Unusual weekend load" },
-  { date: "2026-01-18", deviation: 51, reason: "Above baseline consumption" },
-];
+import { useAnomalies } from "@/hooks/use-anomalies";
 
 export default function DashboardPage() {
   const { contract, contractId, homeId, loading } = useContract();
@@ -37,6 +32,7 @@ export default function DashboardPage() {
     loading: analyticsLoading,
   } = useConsumptionAnalytics(contractId);
   const { forecast } = useForecast(homeId);
+  const { anomalies } = useAnomalies(homeId);
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(new Date().getFullYear(), 0, 20),
     to: addDays(new Date(new Date().getFullYear(), 0, 20), 20),
@@ -171,7 +167,7 @@ export default function DashboardPage() {
 
         <div className="mt-4 grid md:grid-cols-3 gap-4 relative">
           <div className="md:col-span-2 space-y-4">
-            <AnomalyScatterChart />
+            <AnomalyScatterChart data={anomalies.filter((a) => a.is_anomaly)} allData={anomalies} />
             <ConfidenceBandChart daily={forecast?.daily ?? []} />
           </div>
 
@@ -181,23 +177,30 @@ export default function DashboardPage() {
             </CardHeader>
 
             <CardContent className="space-y-2">
-              {anomalies.map((a) => (
-                <div
-                  key={a.date}
-                  className="flex items-center justify-between rounded-md bg-accent p-2"
-                >
-                  <div>
-                    <div className="font-medium leading-tight">{a.date}</div>
-                    <div className="text-xs text-muted-foreground leading-3">
-                      {a.reason}
+              {anomalies.filter((a) => a.is_anomaly).length === 0 && (
+                <p className="text-xs text-muted-foreground">No anomalies detected in the last 90 days.</p>
+              )}
+              {anomalies.filter((a) => a.is_anomaly).map((a) => {
+                const pct = a.predicted_kwh > 0
+                  ? Math.round(((a.actual_kwh - a.predicted_kwh) / a.predicted_kwh) * 100)
+                  : 0;
+                return (
+                  <div
+                    key={a.date}
+                    className="flex items-center justify-between rounded-md bg-accent p-2"
+                  >
+                    <div>
+                      <div className="font-medium leading-tight">{a.date}</div>
+                      <div className="text-xs text-muted-foreground leading-3">
+                        {a.actual_kwh.toFixed(1)} kWh actual · {a.predicted_kwh.toFixed(1)} kWh expected
+                      </div>
+                    </div>
+                    <div className={pct >= 0 ? "text-destructive font-semibold" : "text-green-600 font-semibold"}>
+                      {pct >= 0 ? "+" : ""}{pct}%
                     </div>
                   </div>
-
-                  <div className="text-destructive font-semibold">
-                    +{a.deviation}%
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         </div>

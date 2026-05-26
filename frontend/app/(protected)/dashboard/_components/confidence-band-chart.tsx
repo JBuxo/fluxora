@@ -28,7 +28,7 @@ import type { DailyForecast } from "@/lib/types/api";
 
 const config = {
   predicted: { label: "Forecast", color: "var(--chart-3)" },
-  range: { label: "80% confidence", color: "var(--chart-1)" },
+  range: { label: "99% confidence", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -126,7 +126,7 @@ export function ConfidenceBandChart({ daily }: Props) {
             <Area
               dataKey="range"
               fill="var(--color-range)"
-              fillOpacity={0.12}
+              fillOpacity={0.25}
               stroke="var(--color-range)"
               strokeOpacity={0.3}
               strokeWidth={1}

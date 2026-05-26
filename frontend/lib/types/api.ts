@@ -66,6 +66,17 @@ export interface ForecastResponse {
   last_run_at: string | null;
 }
 
+export interface AnomalyPoint {
+  date: string;
+  actual_kwh: number;
+  predicted_kwh: number;
+  lower_kwh: number;
+  upper_kwh: number;
+  residual_kwh: number;
+  z_score: number;
+  is_anomaly: boolean;
+}
+
 export interface ReportTOU {
   P1: number;
   P2: number;
