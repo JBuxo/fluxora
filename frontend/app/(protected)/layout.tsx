@@ -8,15 +8,31 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { backendUrl } from "@/app/lib/backend";
 
-// TODO: replace with real check (e.g. fetch user profile from DB)
-const isOnboarded = true;
+async function hasOnboarded(): Promise<boolean> {
+  const token = process.env.NEXT_PUBLIC_DEV_TOKEN ?? "";
+  if (!token) return false;
+  try {
+    const res = await fetch(backendUrl("/homes/with-contracts"), {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return false;
+    const homes = await res.json();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return homes.some((h: any) => h.supply_points.length > 0);
+  } catch {
+    return false;
+  }
+}
 
-export default function ProtectedRootLayout({
+export default async function ProtectedRootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const isOnboarded = await hasOnboarded();
   if (!isOnboarded) redirect("/setup");
 
   return (

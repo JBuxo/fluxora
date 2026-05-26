@@ -8,11 +8,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { TooltipProps } from "recharts";
-import type {
-  NameType,
-  ValueType,
-} from "recharts/types/component/DefaultTooltipContent";
 
 import {
   Card,
@@ -29,60 +24,47 @@ import {
   ChartTooltip,
   type ChartConfig,
 } from "@/components/ui/chart";
-
-const data = Array.from({ length: 30 }).map((_, i) => {
-  const base = 60 + Math.sin(i / 4) * 8;
-
-  return {
-    day: i,
-    actual: parseFloat((base + (Math.random() - 0.5) * 5).toFixed(1)),
-    range: [
-      parseFloat((base - 15).toFixed(1)),
-      parseFloat((base + 15).toFixed(1)),
-    ] as [number, number],
-  };
-});
+import type { DailyForecast } from "@/lib/types/api";
 
 const config = {
-  actual: { label: "Actual", color: "var(--chart-3)" },
-  range: { label: "Expected range", color: "var(--chart-1)" },
+  predicted: { label: "Forecast", color: "var(--chart-3)" },
+  range: { label: "80% confidence", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
-function BandTooltip({
-  active,
-  payload,
-  label,
-}: TooltipProps<ValueType, NameType>) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function BandTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
 
-  const actual = payload.find((p) => p.dataKey === "actual");
-  const range = payload.find((p) => p.dataKey === "range");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const predicted = payload.find((p: any) => p.dataKey === "predicted");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const range = payload.find((p: any) => p.dataKey === "range");
   const [lower, upper] = (range?.value as [number, number]) ?? [];
 
   return (
     <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-md">
-      <p className="mb-1.5 font-medium text-foreground">Day {label}</p>
-      {actual && (
+      <p className="mb-1.5 font-medium text-foreground">{label}</p>
+      {predicted && (
         <div className="flex items-center gap-2">
           <span
             className="h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: "var(--color-actual)" }}
+            style={{ backgroundColor: "var(--color-predicted)" }}
           />
-          <span className="text-muted-foreground">Actual</span>
+          <span className="text-muted-foreground">Forecast</span>
           <span className="ml-auto pl-4 font-medium tabular-nums text-foreground">
-            {Number(actual.value).toFixed(1)}
+            {Number(predicted.value).toFixed(2)} kWh
           </span>
         </div>
       )}
-      {range && (
+      {range && lower != null && (
         <div className="mt-1 flex items-center gap-2">
           <span
             className="h-2 w-2 shrink-0 rounded-sm opacity-40"
             style={{ backgroundColor: "var(--color-range)" }}
           />
-          <span className="text-muted-foreground">Expected range</span>
+          <span className="text-muted-foreground">Range</span>
           <span className="ml-auto pl-4 font-medium tabular-nums text-foreground">
-            {lower} - {upper}
+            {lower.toFixed(1)} – {upper.toFixed(1)}
           </span>
         </div>
       )}
@@ -90,45 +72,55 @@ function BandTooltip({
   );
 }
 
-export function ConfidenceBandChart() {
+interface Props {
+  daily: DailyForecast[];
+}
+
+export function ConfidenceBandChart({ daily }: Props) {
+  const chartData = daily.map((d) => ({
+    date: d.date.slice(5),
+    predicted: parseFloat(d.predicted_kwh.toFixed(2)),
+    range: [
+      parseFloat(d.lower_kwh.toFixed(2)),
+      parseFloat(d.upper_kwh.toFixed(2)),
+    ] as [number, number],
+  }));
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Expected vs Actual</CardTitle>
+        <CardTitle>Daily Consumption Forecast</CardTitle>
         <CardDescription>
-          Confidence band based on historical variance
+          Prophet model · 80% confidence band
         </CardDescription>
       </CardHeader>
 
       <CardContent>
         <ChartContainer config={config} className="h-75 w-full">
           <ComposedChart
-            data={data}
+            data={chartData}
             margin={{ top: 4, right: 4, bottom: 0, left: -20 }}
           >
             <CartesianGrid vertical={false} />
 
             <XAxis
-              dataKey="day"
-              type="number"
+              dataKey="date"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              domain={["dataMin", "dataMax"]}
-              tickFormatter={(v) => `D${v}`}
+              interval="preserveStartEnd"
             />
             <YAxis
               tickLine={false}
               axisLine={false}
               tickMargin={8}
               domain={["auto", "auto"]}
+              tickFormatter={(v) => `${v}`}
             />
 
             <ChartTooltip content={<BandTooltip />} />
-
             <ChartLegend content={<ChartLegendContent />} />
 
-            {/* Range band — dataKey as [lower, upper] tuple renders a filled area */}
             <Area
               dataKey="range"
               fill="var(--color-range)"
@@ -143,8 +135,8 @@ export function ConfidenceBandChart() {
             />
 
             <Line
-              dataKey="actual"
-              stroke="var(--color-actual)"
+              dataKey="predicted"
+              stroke="var(--color-predicted)"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4, strokeWidth: 0 }}
