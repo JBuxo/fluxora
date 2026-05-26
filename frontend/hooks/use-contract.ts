@@ -8,6 +8,7 @@ import type { HomeWithContracts } from "@/lib/types/api";
 
 interface ResolvedContract {
   id: string; // supply point id — used for all analytics API calls
+  homeId: string;
   name: string;
   tariff: string;
   logo: typeof GalleryVerticalEndIcon;
@@ -38,6 +39,7 @@ export function useContract() {
           for (const sp of home.supply_points) {
             const candidate: ResolvedContract = {
               id: sp.id,
+              homeId: home.id,
               name: home.name,
               tariff: sp.active_contract?.tariff_name ?? "—",
               logo: GalleryVerticalEndIcon,
@@ -56,5 +58,5 @@ export function useContract() {
       .finally(() => setLoading(false));
   }, [supplyPointId, authHeader]);
 
-  return { contractId: contract?.id ?? null, contract, loading };
+  return { contractId: contract?.id ?? null, homeId: contract?.homeId ?? null, contract, loading };
 }

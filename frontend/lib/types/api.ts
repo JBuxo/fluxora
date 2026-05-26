@@ -43,6 +43,30 @@ export interface HeatmapPoint {
   value: number;
 }
 
+export interface DailyForecast {
+  date: string;
+  predicted_kwh: number;
+  lower_kwh: number;
+  upper_kwh: number;
+}
+
+export interface BillEstimate {
+  mtd_actual_kwh: number;
+  projected_remaining_kwh: number;
+  total_projected_kwh: number;
+  energy_rate_kwh: number;
+  variable_cost_eur: number;
+  fixed_cost_eur: number | null;
+  estimated_bill_eur: number;
+  days_remaining: number;
+}
+
+export interface ForecastResponse {
+  daily: DailyForecast[];
+  bill_estimate: BillEstimate;
+  last_run_at: string | null;
+}
+
 export interface ReportTOU {
   P1: number;
   P2: number;

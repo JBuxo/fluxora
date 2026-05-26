@@ -11,6 +11,7 @@ import {
 import Loader from "@/components/ui/loader";
 import { useContract } from "@/hooks/use-contract";
 import { useConsumptionAnalytics } from "@/hooks/use-consumption-analytics";
+import { useForecast } from "@/hooks/use-forecast";
 import { addDays } from "date-fns";
 import React from "react";
 import { DateRange } from "react-day-picker";
@@ -21,8 +22,6 @@ import { Anomaly } from "@/lib/types/ui";
 import { AnomalyScatterChart } from "./_components/anomaly-scatter-chart";
 import { ConfidenceBandChart } from "./_components/confidence-band-chart";
 import { RecommendationEngine } from "./_components/recommendation-section";
-import ConfigWizard from "@/components/sections/config-wizard";
-
 const anomalies: Anomaly[] = [
   { date: "2026-01-03", deviation: 42, reason: "Spike in evening usage" },
   { date: "2026-01-10", deviation: 38, reason: "Unusual weekend load" },
@@ -30,23 +29,18 @@ const anomalies: Anomaly[] = [
 ];
 
 export default function DashboardPage() {
-  const { contract, contractId, loading } = useContract();
+  const { contract, contractId, homeId, loading } = useContract();
   const {
     summary,
     monthly,
     heatmap,
     loading: analyticsLoading,
   } = useConsumptionAnalytics(contractId);
+  const { forecast } = useForecast(homeId);
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(new Date().getFullYear(), 0, 20),
     to: addDays(new Date(new Date().getFullYear(), 0, 20), 20),
   });
-
-  const isConfigComplete = true; //Based on contract data
-
-  if (!isConfigComplete) {
-    return <ConfigWizard />;
-  }
 
   if (loading || !contract) {
     return (
@@ -106,12 +100,14 @@ export default function DashboardPage() {
               hint: "Estimated from consumption records",
             },
             {
-              title: "Forecasted Cost",
-              description: "30-day projection",
-              value: summary
-                ? `€${summary.forecasted_monthly_cost.toFixed(0)}`
+              title: "Forecasted Bill",
+              description: "End of month estimate",
+              value: forecast
+                ? `€${forecast.bill_estimate.estimated_bill_eur.toFixed(2)}`
                 : "—",
-              hint: "Based on current daily average",
+              hint: forecast
+                ? `${forecast.bill_estimate.total_projected_kwh.toFixed(0)} kWh projected · ${forecast.bill_estimate.days_remaining}d left`
+                : "Forecast pending",
             },
           ].map((kpi) => (
             <Card key={kpi.title}>
@@ -174,7 +170,7 @@ export default function DashboardPage() {
         <div className="mt-4 grid md:grid-cols-3 gap-4 relative">
           <div className="md:col-span-2 space-y-4">
             <AnomalyScatterChart />
-            <ConfidenceBandChart />
+            <ConfidenceBandChart daily={forecast?.daily ?? []} />
           </div>
 
           <Card className="sticky top-20 self-start h-fit max-h-[calc(100vh-2rem)] overflow-y-auto">
