@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -14,6 +14,12 @@ from app.models.enums import ContractStatus
 class HomeCreate(BaseModel):
     name: str
     address: str = ""
+
+
+class TariffRatesIn(BaseModel):
+    energy_rate_kwh: Optional[float] = None
+    power_rate_peak_kw_day: Optional[float] = None
+    power_rate_valley_kw_day: Optional[float] = None
 
 
 router = APIRouter(prefix="/homes", tags=["homes"])
@@ -99,6 +105,40 @@ def delete_home(
         raise HTTPException(status_code=404, detail="Home not found")
     session.delete(home)
     session.commit()
+
+
+@router.put("/{home_id}/tariff")
+def update_tariff_rates(
+    home_id: uuid.UUID,
+    body: TariffRatesIn,
+    user_id: uuid.UUID = Depends(current_user),
+    session: Session = Depends(get_session),
+):
+    home = session.get(Home, home_id)
+    if not home or home.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Home not found")
+
+    supply_points = session.exec(select(SupplyPoint).where(SupplyPoint.home_id == home_id)).all()
+    if not supply_points:
+        raise HTTPException(status_code=404, detail="No supply points found — run sync first")
+
+    updated = 0
+    for sp in supply_points:
+        contract = session.exec(
+            select(Contract).where(
+                Contract.supply_point_id == sp.id,
+                Contract.status == ContractStatus.active,
+            )
+        ).first()
+        if not contract:
+            continue
+        for field, value in body.model_dump(exclude_unset=True).items():
+            setattr(contract, field, value)
+        session.add(contract)
+        updated += 1
+
+    session.commit()
+    return {"updated_contracts": updated}
 
 
 @router.get("/{home_id}/supply-points", response_model=List[SupplyPoint])

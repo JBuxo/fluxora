@@ -25,6 +25,9 @@ class Contract(SQLModel, table=True):
     contracted_powers_kw: Optional[str] = None  # JSON-encoded list of floats per period
     time_discrimination: Optional[str] = None   # e.g. "DHA", "DHS", or None
     marketer: Optional[str] = None
+    energy_rate_kwh: Optional[float] = None
+    power_rate_peak_kw_day: Optional[float] = None
+    power_rate_valley_kw_day: Optional[float] = None
     status: ContractStatus = Field(default=ContractStatus.active)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
