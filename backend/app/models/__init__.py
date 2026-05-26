@@ -8,6 +8,7 @@ from .datadis_credential import DatadisCredential
 from .datadis_sync_job import DatadisSyncJob
 from .usage_profile import UsageProfile
 from .forecast_record import ForecastRecord
+from .anomaly_record import AnomalyRecord
 
 __all__ = [
     "User",
@@ -20,4 +21,5 @@ __all__ = [
     "DatadisSyncJob",
     "UsageProfile",
     "ForecastRecord",
+    "AnomalyRecord",
 ]

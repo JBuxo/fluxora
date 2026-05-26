@@ -1,6 +1,13 @@
 "use client";
 
-import { Line, LineChart, XAxis, YAxis, CartesianGrid } from "recharts";
+import {
+  Area,
+  ComposedChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+} from "recharts";
 import type { DotProps } from "recharts";
 
 import {
@@ -13,124 +20,214 @@ import {
 
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
-  ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-
-type AnomalyDotProps = DotProps & {
-  payload?: DataPoint;
-};
+import type { AnomalyPoint } from "@/lib/types/api";
 
 type DataPoint = {
-  x: number;
-  expected: number;
+  date: string;
+  range: [number, number];
   actual: number;
-  anomaly: boolean;
+  is_anomaly: boolean;
 };
 
-const rawData = Array.from({ length: 60 }).map((_, i) => {
-  const base = 50 + Math.sin(i / 6) * 10;
-  const anomaly = i % 19 === 0;
-
-  return {
-    x: i,
-    expected: base,
-    actual: anomaly ? base * 1.7 : base,
-    anomaly,
-  };
-});
+type AnomalyDotProps = DotProps & { payload?: DataPoint };
 
 const chartConfig = {
-  expected: {
-    label: "Expected",
-    color: "var(--chart-1)",
-  },
-  actual: {
-    label: "Actual",
-    color: "var(--chart-3)",
-  },
+  range: { label: "Expected range", color: "var(--chart-1)" },
+  actual: { label: "Actual", color: "var(--chart-3)" },
 } satisfies ChartConfig;
 
-function AnomalyDot({ cx, cy, payload }: AnomalyDotProps) {
+function ActualDot({ cx, cy, payload }: AnomalyDotProps) {
   if (!cx || !cy) return null;
-  if (!payload?.anomaly) return null;
-
+  if (payload?.is_anomaly) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="var(--destructive)"
+        stroke="white"
+        strokeWidth={2}
+      />
+    );
+  }
   return (
-    <circle
-      cx={cx}
-      cy={cy}
-      r={5}
-      fill="var(--chart-3)"
-      stroke="white"
-      strokeWidth={2}
-    />
+    <circle cx={cx} cy={cy} r={2} fill="var(--color-actual)" opacity={0.4} />
   );
 }
 
-export function AnomalyScatterChart() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function AnomalyTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const actual = payload.find((p: any) => p.dataKey === "actual");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const range = payload.find((p: any) => p.dataKey === "range");
+  const [lower, upper] = (range?.value as [number, number]) ?? [];
+  const isAnomaly = actual?.payload?.is_anomaly;
+
+  return (
+    <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-md">
+      <p className="mb-1.5 font-medium text-foreground">{label}</p>
+      {range && lower != null && (
+        <div className="flex items-center gap-2">
+          <span
+            className="h-2 w-2 rounded-sm opacity-40"
+            style={{ backgroundColor: "var(--color-range)" }}
+          />
+          <span className="text-muted-foreground">Expected</span>
+          <span className="ml-auto pl-4 font-medium tabular-nums">
+            {lower.toFixed(1)} – {upper.toFixed(1)} kWh
+          </span>
+        </div>
+      )}
+      {actual && (
+        <div className="flex items-center gap-2 mt-1">
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{
+              backgroundColor: isAnomaly
+                ? "var(--destructive)"
+                : "var(--color-actual)",
+            }}
+          />
+          <span className="text-muted-foreground">Actual</span>
+          <span className="ml-auto pl-4 font-medium tabular-nums">
+            {Number(actual.value).toFixed(2)} kWh
+          </span>
+        </div>
+      )}
+      {isAnomaly && (
+        <p className="mt-1.5 text-destructive font-medium">
+          Anomaly spike detected
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface Props {
+  data: AnomalyPoint[];
+  allData?: AnomalyPoint[];
+}
+
+export function AnomalyScatterChart({ data, allData }: Props) {
+  const chartData: DataPoint[] = (allData ?? data).map((d) => ({
+    date: d.date.slice(5),
+    range: [
+      parseFloat(d.lower_kwh.toFixed(2)),
+      parseFloat(d.upper_kwh.toFixed(2)),
+    ] as [number, number],
+    actual: parseFloat(d.actual_kwh.toFixed(2)),
+    is_anomaly: d.is_anomaly,
+  }));
+
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Anomaly Detection</CardTitle>
+          <CardDescription>
+            Actual vs expected daily consumption
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-48 text-muted-foreground text-sm">
+          No data available
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Anomalies</CardTitle>
-        <CardDescription>Historical consumption monitoring</CardDescription>
+        <CardTitle>Anomaly Detection</CardTitle>
+        <CardDescription>
+          Dots outside the band exceed 2σ from expected
+        </CardDescription>
       </CardHeader>
 
       <CardContent>
         <ChartContainer config={chartConfig} className="h-80 w-full">
-          <LineChart
-            data={rawData}
+          <ComposedChart
+            data={chartData}
             margin={{ top: 10, right: 10, bottom: 0, left: -10 }}
           >
             <CartesianGrid vertical={false} />
 
             <XAxis
-              dataKey="x"
-              type="number"
+              dataKey="date"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(v) => `T${v}`}
+              interval={Math.floor(chartData.length / 6)}
+              tickFormatter={(v) => {
+                const [month, day] = v.split("-");
+                return `${new Date(2000, parseInt(month) - 1).toLocaleString("en", { month: "short" })} ${parseInt(day)}`;
+              }}
             />
 
-            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-
-            <ChartTooltip
-              content={<ChartTooltipContent className="min-w-40 " />}
-              cursor={false}
-              defaultIndex={1}
-              payloadUniqBy
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              domain={["auto", "auto"]}
             />
 
-            <ChartLegend content={<ChartLegendContent />} />
+            <ChartTooltip content={<AnomalyTooltip />} cursor={false} />
 
-            {/* Expected */}
-            <Line
-              dataKey="expected"
-              stroke="var(--chart-1)"
-              strokeWidth={2}
+            <Area
+              dataKey="range"
+              fill="var(--color-range)"
+              fillOpacity={0.25}
+              stroke="var(--color-range)"
+              strokeOpacity={0.3}
+              strokeWidth={1}
+              strokeDasharray="4 4"
               dot={false}
+              activeDot={false}
+              legendType="none"
             />
 
-            {/* Actual */}
             <Line
               dataKey="actual"
-              stroke="var(--chart-3)"
-              strokeWidth={2}
-              dot={false}
-            />
-
-            {/* Anomaly markers (on actual only) */}
-            <Line
-              dataKey="actual"
-              stroke="transparent"
-              dot={<AnomalyDot />}
+              stroke="var(--color-actual)"
+              strokeWidth={1.5}
+              dot={<ActualDot />}
               activeDot={false}
             />
-          </LineChart>
+          </ComposedChart>
         </ChartContainer>
+
+        <div className="flex items-center justify-center gap-4 mt-2 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-3 w-4 rounded-sm"
+              style={{
+                backgroundColor: "var(--chart-1)",
+                opacity: 0.25,
+                border: "1px dashed var(--chart-1)",
+              }}
+            />
+            Expected range
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2 w-2 rounded-full opacity-40"
+              style={{ backgroundColor: "var(--chart-3)" }}
+            />
+            Actual
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: "var(--destructive)" }}
+            />
+            Anomaly spike
+          </span>
+        </div>
       </CardContent>
     </Card>
   );

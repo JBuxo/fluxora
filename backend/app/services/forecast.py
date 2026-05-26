@@ -1,13 +1,17 @@
 import uuid
 from datetime import date, datetime, timezone
 
+import numpy as np
 import pandas as pd
 from prophet import Prophet
 from sqlmodel import Session, select
 
 from app.models import ConsumptionRecord, SupplyPoint
+from app.models.anomaly_record import AnomalyRecord
 from app.models.forecast_record import ForecastRecord
 from app.models.usage_profile import UsageProfile
+
+ANOMALY_Z_THRESHOLD = 2.0
 
 
 def _occupants_to_float(value: str | None) -> float:
@@ -59,15 +63,17 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
         yearly_seasonality=True,
         weekly_seasonality=True,
         daily_seasonality=False,
-        interval_width=0.50,
+        interval_width=0.99,
     )
     model.add_regressor("occupants")
     model.add_regressor("work_from_home")
     model.fit(df)
 
+    now = datetime.now(timezone.utc)
     today = date.today()
-    last_day = today + pd.Timedelta(days=30)
 
+    # ── Future forecast (rolling 30 days) ────────────────────────────────────
+    last_day = today + pd.Timedelta(days=30)
     future_dates = pd.date_range(start=pd.Timestamp(today), end=pd.Timestamp(last_day), freq="D")
     future = pd.DataFrame({"ds": future_dates})
     future["occupants"] = occupants
@@ -75,7 +81,6 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
 
     forecast = model.predict(future)
 
-    now = datetime.now(timezone.utc)
     upserted = 0
     for _, row in forecast.iterrows():
         forecast_date = row["ds"].date()
@@ -106,6 +111,54 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
                 run_at=now,
             ))
         upserted += 1
+
+    # ── Historical anomaly detection ─────────────────────────────────────────
+    hist = df[["ds", "y", "occupants", "work_from_home"]].copy()
+    hist_pred = model.predict(hist)
+
+    residuals = df["y"].values - hist_pred["yhat"].values
+    std = float(np.std(residuals)) or 1.0
+
+    for i, row in hist_pred.iterrows():
+        actual = float(df.iloc[i]["y"])
+        predicted_h = float(row["yhat"])
+        lower_h = max(0.0, float(row["yhat_lower"]))
+        upper_h = max(0.0, float(row["yhat_upper"]))
+        residual = actual - predicted_h
+        z = residual / std
+
+        anomaly_date = row["ds"].date()
+
+        existing_a = session.exec(
+            select(AnomalyRecord).where(
+                AnomalyRecord.home_id == home_id,
+                AnomalyRecord.anomaly_date == anomaly_date,
+            )
+        ).first()
+
+        if existing_a:
+            existing_a.actual_kwh = round(actual, 3)
+            existing_a.predicted_kwh = round(predicted_h, 3)
+            existing_a.lower_kwh = round(lower_h, 3)
+            existing_a.upper_kwh = round(upper_h, 3)
+            existing_a.residual_kwh = round(residual, 3)
+            existing_a.z_score = round(z, 3)
+            existing_a.is_anomaly = z >= ANOMALY_Z_THRESHOLD
+            existing_a.run_at = now
+            session.add(existing_a)
+        else:
+            session.add(AnomalyRecord(
+                home_id=home_id,
+                anomaly_date=anomaly_date,
+                actual_kwh=round(actual, 3),
+                predicted_kwh=round(predicted_h, 3),
+                lower_kwh=round(lower_h, 3),
+                upper_kwh=round(upper_h, 3),
+                residual_kwh=round(residual, 3),
+                z_score=round(z, 3),
+                is_anomaly=z >= ANOMALY_Z_THRESHOLD,
+                run_at=now,
+            ))
 
     session.commit()
     return upserted
