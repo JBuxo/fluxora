@@ -50,7 +50,7 @@ export default function UsageHeatmap({ data }: Props) {
     <Card>
       <CardHeader>
         <CardTitle>Usage Heatmap</CardTitle>
-        <CardDescription>Average consumption by hour and day</CardDescription>
+        <CardDescription>Average kWh by hour and day — last full month</CardDescription>
       </CardHeader>
 
       <CardContent>

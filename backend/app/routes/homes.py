@@ -54,7 +54,11 @@ def homes_with_contracts(
     homes = session.exec(select(Home).where(Home.user_id == user_id)).all()
     result = []
     for home in homes:
-        sps = session.exec(select(SupplyPoint).where(SupplyPoint.home_id == home.id)).all()
+        sps = session.exec(
+            select(SupplyPoint)
+            .where(SupplyPoint.home_id == home.id)
+            .order_by(SupplyPoint.last_synced_at.desc())
+        ).all()
         sp_list = []
         for sp in sps:
             contracts = session.exec(

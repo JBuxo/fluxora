@@ -2,7 +2,7 @@ import json
 import os
 import uuid
 from calendar import monthrange
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -75,6 +75,18 @@ def get_forecast(
         ).all()
         mtd_actual_kwh = sum(r.consumption_kwh for r in records)
 
+    rolling_end = today + timedelta(days=30)
+
+    # full 30-day window for the chart
+    daily_forecasts = session.exec(
+        select(ForecastRecord).where(
+            ForecastRecord.home_id == home_id,
+            ForecastRecord.forecast_date >= today,
+            ForecastRecord.forecast_date <= rolling_end,
+        ).order_by(ForecastRecord.forecast_date)
+    ).all()
+
+    # current-month only for bill estimate
     forecasts = session.exec(
         select(ForecastRecord).where(
             ForecastRecord.home_id == home_id,
@@ -128,7 +140,7 @@ def get_forecast(
     estimated_bill_eur = round(variable_cost + (fixed_cost or 0.0), 2)
     days_remaining = (month_end - today).days
 
-    last_run_at = max((f.run_at for f in forecasts), default=None)
+    last_run_at = max((f.run_at for f in daily_forecasts), default=None)
 
     daily = [
         DailyForecast(
@@ -137,7 +149,7 @@ def get_forecast(
             lower_kwh=f.lower_kwh,
             upper_kwh=f.upper_kwh,
         )
-        for f in forecasts
+        for f in daily_forecasts
     ]
 
     return ForecastResponse(

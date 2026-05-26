@@ -97,7 +97,12 @@ def sync_all(
         for supply in supplies:
             cups = supply["cups"].strip()
 
-            sp = session.exec(select(SupplyPoint).where(SupplyPoint.cups == cups)).first()
+            sp = session.exec(
+                select(SupplyPoint).where(
+                    SupplyPoint.cups == cups,
+                    SupplyPoint.home_id == home_id,
+                )
+            ).first()
             if not sp:
                 sp = SupplyPoint(
                     home_id=home_id,

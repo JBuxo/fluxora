@@ -90,9 +90,7 @@ export function ConfidenceBandChart({ daily }: Props) {
     <Card>
       <CardHeader>
         <CardTitle>Daily Consumption Forecast</CardTitle>
-        <CardDescription>
-          Prophet model · 80% confidence band
-        </CardDescription>
+        <CardDescription>Forecast with confidence band</CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -108,7 +106,11 @@ export function ConfidenceBandChart({ daily }: Props) {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              interval="preserveStartEnd"
+              interval={6}
+              tickFormatter={(v) => {
+                const [month, day] = v.split("-");
+                return `${new Date(2000, parseInt(month) - 1).toLocaleString("en", { month: "short" })} ${parseInt(day)}`;
+              }}
             />
             <YAxis
               tickLine={false}
