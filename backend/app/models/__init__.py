@@ -7,6 +7,7 @@ from .max_power_record import MaxPowerRecord
 from .datadis_credential import DatadisCredential
 from .datadis_sync_job import DatadisSyncJob
 from .usage_profile import UsageProfile
+from .forecast_record import ForecastRecord
 
 __all__ = [
     "User",
@@ -18,4 +19,5 @@ __all__ = [
     "DatadisCredential",
     "DatadisSyncJob",
     "UsageProfile",
+    "ForecastRecord",
 ]

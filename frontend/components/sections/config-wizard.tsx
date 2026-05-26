@@ -56,6 +56,18 @@ const defaultPattern: UsagePattern = {
   cookingMeals: [],
 };
 
+type TariffRates = {
+  energyRateKwh: string;
+  powerRatePeakKwDay: string;
+  powerRateValleyKwDay: string;
+};
+
+const defaultRates: TariffRates = {
+  energyRateKwh: "0.1199",
+  powerRatePeakKwDay: "0.119151",
+  powerRateValleyKwDay: "0.058877",
+};
+
 // ── Primitives ─────────────────────────────────────────────────────────────
 
 function Q({
@@ -381,6 +393,66 @@ function YourRoutineStep({
   );
 }
 
+function TariffStep({
+  rates,
+  setRates,
+}: {
+  rates: TariffRates;
+  setRates: (r: TariffRates) => void;
+}) {
+  function set(field: keyof TariffRates, value: string) {
+    setRates({ ...rates, [field]: value });
+  }
+
+  return (
+    <div className="space-y-6 max-w-md mx-auto">
+      <p className="text-muted-foreground">
+        Find these on your electricity bill or your provider&apos;s website.
+        We&apos;ve pre-filled typical Spanish market values.
+      </p>
+
+      <div className="space-y-2">
+        <Label htmlFor="energy_rate">Precio de energía consumida (€/kWh)</Label>
+        <Input
+          id="energy_rate"
+          type="number"
+          step="0.000001"
+          min="0"
+          value={rates.energyRateKwh}
+          onChange={(e) => set("energyRateKwh", e.target.value)}
+          placeholder="0.1199"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="power_peak">Precio de potencia — Punta (€/kW día)</Label>
+        <Input
+          id="power_peak"
+          type="number"
+          step="0.000001"
+          min="0"
+          value={rates.powerRatePeakKwDay}
+          onChange={(e) => set("powerRatePeakKwDay", e.target.value)}
+          placeholder="0.119151"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="power_valley">Precio de potencia — Valle (€/kW día)</Label>
+        <Input
+          id="power_valley"
+          type="number"
+          step="0.000001"
+          min="0"
+          value={rates.powerRateValleyKwDay}
+          onChange={(e) => set("powerRateValleyKwDay", e.target.value)}
+          placeholder="0.058877"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Sync success animation ────────────────────────────────────────────────
 
 function SyncSuccess() {
@@ -406,6 +478,7 @@ export default function ConfigWizard() {
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState<"forward" | "back">("forward");
   const [pattern, setPattern] = useState<UsagePattern>(defaultPattern);
+  const [rates, setRates] = useState<TariffRates>(defaultRates);
   const contentRef = useRef<HTMLDivElement>(null);
   const [cardHeight, setCardHeight] = useState<number | undefined>(undefined);
   const [syncing, setSyncing] = useState(false);
@@ -427,8 +500,9 @@ export default function ConfigWizard() {
 
       const home = await createRes.json();
 
+      await fetch(`/api/homes/${home.id}/sync`, { method: "POST", headers });
+
       await Promise.all([
-        fetch(`/api/homes/${home.id}/sync`, { method: "POST", headers }),
         fetch(`/api/homes/${home.id}/usage-profile`, {
           method: "PUT",
           headers,
@@ -444,6 +518,15 @@ export default function ConfigWizard() {
             sleep_time: pattern.sleepTime || null,
             laundry_time: pattern.laundryTime || null,
             cooking_meals: pattern.cookingMeals,
+          }),
+        }),
+        fetch(`/api/homes/${home.id}/tariff`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            energy_rate_kwh: rates.energyRateKwh ? parseFloat(rates.energyRateKwh) : null,
+            power_rate_peak_kw_day: rates.powerRatePeakKwDay ? parseFloat(rates.powerRatePeakKwDay) : null,
+            power_rate_valley_kw_day: rates.powerRateValleyKwDay ? parseFloat(rates.powerRateValleyKwDay) : null,
           }),
         }),
       ]);
@@ -496,6 +579,10 @@ export default function ConfigWizard() {
     {
       title: "Your daily routine",
       content: <YourRoutineStep pattern={pattern} setPattern={setPattern} />,
+    },
+    {
+      title: "Your electricity tariff",
+      content: <TariffStep rates={rates} setRates={setRates} />,
     },
   ];
 
