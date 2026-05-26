@@ -76,37 +76,39 @@ export default function DashboardPage() {
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             {
-              title: "Total Consumption",
-              description: "Last 30 days",
-              value: summary
-                ? `${(summary.total_kwh / 1000).toFixed(2)} MWh`
-                : "—",
+              title: "This Month",
+              description: "Consumption to date",
+              value: summary ? `${summary.mtd_kwh.toFixed(0)} kWh` : "—",
               hint: analyticsLoading
                 ? "Loading…"
-                : `${summary?.record_count ?? 0} records`,
+                : summary
+                  ? `${summary.avg_daily_kwh.toFixed(1)} kWh/day avg`
+                  : "No data",
             },
             {
-              title: "Consumption Trend",
-              description: "vs previous period",
+              title: "vs Last Month",
+              description: "Same days comparison",
               value: summary
-                ? `${summary.trend_pct >= 0 ? "+" : ""}${summary.trend_pct.toFixed(1)}%`
+                ? `${summary.vs_last_month_pct >= 0 ? "+" : ""}${summary.vs_last_month_pct.toFixed(1)}%`
                 : "—",
-              hint: "Compared to equivalent prior period",
+              hint: "Same days of last month",
             },
             {
-              title: "Total Cost",
-              description: "Last 30 days",
-              value: summary ? `€${summary.total_cost.toFixed(0)}` : "—",
-              hint: "Estimated from consumption records",
+              title: "Spent So Far",
+              description: "Variable cost this month",
+              value: summary ? `€${summary.mtd_cost.toFixed(2)}` : "—",
+              hint: forecast
+                ? `at €${forecast.bill_estimate.energy_rate_kwh.toFixed(4)}/kWh`
+                : "Based on contract rate",
             },
             {
-              title: "Forecasted Bill",
+              title: "Projected Bill",
               description: "End of month estimate",
               value: forecast
                 ? `€${forecast.bill_estimate.estimated_bill_eur.toFixed(2)}`
                 : "—",
               hint: forecast
-                ? `${forecast.bill_estimate.total_projected_kwh.toFixed(0)} kWh projected · ${forecast.bill_estimate.days_remaining}d left`
+                ? `${forecast.bill_estimate.total_projected_kwh.toFixed(0)} kWh total · ${forecast.bill_estimate.days_remaining}d left`
                 : "Forecast pending",
             },
           ].map((kpi) => (

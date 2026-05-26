@@ -19,15 +19,6 @@ import {
 } from "@/components/ui/chart";
 import type { MonthlyDataPoint } from "@/lib/types/api";
 
-const fallbackData = [
-  { month: "January", cost: 186 },
-  { month: "February", cost: 305 },
-  { month: "March", cost: 237 },
-  { month: "April", cost: 173 },
-  { month: "May", cost: 209 },
-  { month: "June", cost: 214 },
-];
-
 const chartConfig = {
   cost: {
     label: "Cost (€)",
@@ -40,25 +31,38 @@ interface Props {
 }
 
 export function CumulativeCostAreaChart({ data }: Props) {
-  const chartData = data && data.length > 0 ? data : fallbackData;
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Energy Cost Trend</CardTitle>
+          <CardDescription>
+            Monthly cost from consumption records
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-48 text-muted-foreground text-sm">
+          No cost data available
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Energy Cost Trend</CardTitle>
-        <CardDescription>
-          Monthly cost from consumption records
-        </CardDescription>
+        <CardDescription>Monthly cost from consumption records</CardDescription>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="px-0">
         <ChartContainer config={chartConfig}>
           <AreaChart
             accessibilityLayer
-            data={chartData}
+            data={data}
             margin={{
-              left: 12,
-              right: 12,
+              top: 20,
+              left: 32,
+              right: 32,
             }}
           >
             <CartesianGrid vertical={false} />
@@ -68,7 +72,6 @@ export function CumulativeCostAreaChart({ data }: Props) {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => value.slice(0, 3)}
             />
 
             <ChartTooltip

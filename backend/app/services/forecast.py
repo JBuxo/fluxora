@@ -59,18 +59,14 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
         yearly_seasonality=True,
         weekly_seasonality=True,
         daily_seasonality=False,
-        interval_width=0.80,
+        interval_width=0.50,
     )
     model.add_regressor("occupants")
     model.add_regressor("work_from_home")
     model.fit(df)
 
     today = date.today()
-    if today.month == 12:
-        last_day = date(today.year + 1, 1, 1) - pd.Timedelta(days=1)
-    else:
-        next_month_end = date(today.year, today.month + 2, 1) - pd.Timedelta(days=1)
-        last_day = next_month_end
+    last_day = today + pd.Timedelta(days=30)
 
     future_dates = pd.date_range(start=pd.Timestamp(today), end=pd.Timestamp(last_day), freq="D")
     future = pd.DataFrame({"ds": future_dates})

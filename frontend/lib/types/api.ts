@@ -21,18 +21,17 @@ export interface HomeWithContracts {
 }
 
 export interface ConsumptionSummary {
-  total_kwh: number;
-  total_cost: number;
+  mtd_kwh: number;
+  mtd_cost: number;
   avg_daily_kwh: number;
-  trend_pct: number;
-  forecasted_monthly_cost: number;
+  vs_last_month_pct: number;
   record_count: number;
 }
 
 export interface MonthlyDataPoint {
   month: string;
   consumption: number;
-  previous: number;
+  previous: number | null;
   cost: number;
 }
 
@@ -84,11 +83,20 @@ export interface ReportSuggestion {
   saving_estimate: string;
 }
 
+export interface ReportSummary {
+  total_kwh: number;
+  total_cost: number;
+  avg_daily_kwh: number;
+  trend_pct: number;
+  forecasted_monthly_cost: number;
+  record_count: number;
+}
+
 export interface Report {
   generated_at: string;
   period: { from: string; to: string; days: number };
   supply_point: { id: string; cups: string; address: string };
-  summary: ConsumptionSummary;
+  summary: ReportSummary;
   monthly: MonthlyDataPoint[];
   heatmap: HeatmapPoint[];
   tou: ReportTOU;

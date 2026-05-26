@@ -48,8 +48,8 @@ export default function AnalyticsPage() {
     weekdayAvg > 0 ? ((weekendAvg - weekdayAvg) / weekdayAvg) * 100 : 0;
 
   const costPerKwh =
-    summary && summary.total_kwh > 0
-      ? summary.total_cost / summary.total_kwh
+    summary && summary.mtd_kwh > 0
+      ? summary.mtd_cost / summary.mtd_kwh
       : null;
 
   const offPeakKwh = heatmap
