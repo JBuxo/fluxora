@@ -18,6 +18,9 @@ from app.models.forecast_record import ForecastRecord
 router = APIRouter(prefix="/homes", tags=["forecast"])
 
 DEFAULT_RATE = float(os.getenv("DEFAULT_RATE_EUR_KWH", "0.19"))
+# 2.0TD regulated access tariff power rates (CNMC) — used when contract has no stored rates
+DEFAULT_POWER_RATE_PEAK = float(os.getenv("DEFAULT_POWER_RATE_PEAK_KW_DAY", "0.102811"))
+DEFAULT_POWER_RATE_VALLEY = float(os.getenv("DEFAULT_POWER_RATE_VALLEY_KW_DAY", "0.047511"))
 
 
 class DailyForecast(BaseModel):
@@ -120,18 +123,17 @@ def get_forecast(
 
     fixed_cost = None
     if active_contract:
-        import json
         powers_raw = active_contract.contracted_powers_kw
-        peak_rate = active_contract.power_rate_peak_kw_day
-        valley_rate = active_contract.power_rate_valley_kw_day
-        if powers_raw and (peak_rate or valley_rate):
+        if powers_raw:
             try:
                 powers = json.loads(powers_raw) if isinstance(powers_raw, str) else list(powers_raw)
                 peak_kw = float(powers[0]) if powers else 0.0
                 valley_kw = float(powers[1]) if len(powers) > 1 else peak_kw
+                peak_rate = active_contract.power_rate_peak_kw_day or DEFAULT_POWER_RATE_PEAK
+                valley_rate = active_contract.power_rate_valley_kw_day or DEFAULT_POWER_RATE_VALLEY
                 days_in_month = (month_end - month_start).days + 1
                 fixed_cost = round(
-                    (peak_kw * (peak_rate or 0.0) + valley_kw * (valley_rate or 0.0)) * days_in_month,
+                    (peak_kw * peak_rate + valley_kw * valley_rate) * days_in_month,
                     2,
                 )
             except (ValueError, IndexError, TypeError):
