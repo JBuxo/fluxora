@@ -1,10 +1,9 @@
 import { backendFetch } from "@/app/lib/backend";
 
-export async function POST(
+export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const body = await request.text();
-  return backendFetch(`/supply-points/${id}/report`, request, { method: "POST", body });
+  return backendFetch(`/supply-points/${id}/reports`, request);
 }

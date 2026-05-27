@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import HeaderBreadcrumb from "@/components/sidebar/header-breadcrumb";
+import { ClientShell } from "./client-shell";
 
 import { Separator } from "@/components/ui/separator";
 import {
@@ -37,6 +38,7 @@ export default async function ProtectedRootLayout({
 
   return (
     <SidebarProvider>
+      <ClientShell>
       <AppSidebar />
       <SidebarInset>
         <header className="fixed flex h-16 shrink-0 items-center bg-background w-full gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 ">
@@ -53,6 +55,7 @@ export default async function ProtectedRootLayout({
           {children}
         </div>
       </SidebarInset>
+      </ClientShell>
     </SidebarProvider>
   );
 }

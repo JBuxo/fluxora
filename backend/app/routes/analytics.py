@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 
 from app.core.deps import current_user
 from app.db.database import get_session
-from app.models import ConsumptionRecord, Contract, Home, SupplyPoint
+from app.models import ConsumptionRecord, Contract, Home, SupplyPoint, WeatherRecord
 from app.models.enums import ContractStatus
 
 router = APIRouter(prefix="/supply-points", tags=["analytics"])
@@ -159,6 +159,44 @@ def get_monthly(
             "cost": round(cur[k]["cost"], 2) if k in cur else 0,
         }
         for k in all_keys
+    ]
+
+
+@router.get("/{sp_id}/consumption/temp-correlation")
+def get_temp_correlation(
+    sp_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(current_user),
+    session: Session = Depends(get_session),
+):
+    sp = _owned_supply_point(sp_id, user_id, session)
+    home = session.get(Home, sp.home_id)
+
+    records = session.exec(
+        select(ConsumptionRecord).where(ConsumptionRecord.supply_point_id == sp_id)
+    ).all()
+
+    monthly_kwh: dict = defaultdict(float)
+    for r in records:
+        ts = r.timestamp.replace(tzinfo=None) if r.timestamp.tzinfo else r.timestamp
+        key = ts.strftime("%Y-%m")
+        monthly_kwh[key] += r.consumption_kwh
+
+    monthly_temp: dict = defaultdict(list)
+    if home and home.weather_location_id:
+        weather_recs = session.exec(
+            select(WeatherRecord).where(WeatherRecord.location_id == home.weather_location_id)
+        ).all()
+        for w in weather_recs:
+            if w.temp_mean_c is not None:
+                monthly_temp[w.record_date.strftime("%Y-%m")].append(w.temp_mean_c)
+
+    return [
+        {
+            "month": datetime.strptime(k, "%Y-%m").strftime("%b %y"),
+            "consumption": round(monthly_kwh[k], 2),
+            "avg_temp": round(sum(monthly_temp[k]) / len(monthly_temp[k]), 1) if monthly_temp.get(k) else None,
+        }
+        for k in sorted(monthly_kwh.keys())
     ]
 
 

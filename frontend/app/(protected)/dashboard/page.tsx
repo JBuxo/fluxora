@@ -30,14 +30,16 @@ export default function DashboardPage() {
     heatmap,
     loading: analyticsLoading,
   } = useConsumptionAnalytics(contractId);
-  const { forecast } = useForecast(homeId);
-  const { anomalies } = useAnomalies(homeId);
+  const { forecast, loading: forecastLoading } = useForecast(homeId);
+  const { anomalies, loading: anomaliesLoading } = useAnomalies(homeId);
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(new Date().getFullYear(), 0, 20),
     to: addDays(new Date(new Date().getFullYear(), 0, 20), 20),
   });
 
-  if (loading || !contract) {
+  const isLoading = loading || analyticsLoading || forecastLoading || anomaliesLoading;
+
+  if (isLoading || !contract) {
     return (
       <div className="h-full w-full flex items-center justify-center">
         <Loader />

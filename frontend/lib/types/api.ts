@@ -42,6 +42,12 @@ export interface HeatmapPoint {
   value: number;
 }
 
+export interface TempCorrelationPoint {
+  month: string;
+  consumption: number;
+  avg_temp: number | null;
+}
+
 export interface DailyForecast {
   date: string;
   predicted_kwh: number;
@@ -104,6 +110,7 @@ export interface ReportSummary {
 }
 
 export interface Report {
+  id?: string;
   generated_at: string;
   period: { from: string; to: string; days: number };
   supply_point: { id: string; cups: string; address: string };
@@ -112,4 +119,14 @@ export interface Report {
   heatmap: HeatmapPoint[];
   tou: ReportTOU;
   suggestions: ReportSuggestion[];
+}
+
+export interface SavedReportMeta {
+  id: string;
+  generated_at: string;
+  period_from: string;
+  period_to: string;
+  period_days: number;
+  total_kwh: number;
+  record_count: number;
 }

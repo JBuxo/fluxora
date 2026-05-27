@@ -15,15 +15,15 @@ import { CumulativeCostAreaChart } from "@/app/(protected)/dashboard/_components
 import { HourlyProfileChart } from "./_components/hourly-profile-chart";
 import { DayProfileChart } from "./_components/day-profile-chart";
 import { TouBreakdownChart } from "./_components/tou-breakdown-chart";
-import { CostEfficiencyChart } from "./_components/cost-efficiency-chart";
+import { TempCorrelationChart } from "./_components/temp-correlation-chart";
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function AnalyticsPage() {
   const { contract, contractId, loading } = useContract();
-  const { summary, monthly, heatmap, loading: analyticsLoading } = useConsumptionAnalytics(contractId);
+  const { summary, monthly, heatmap, tempCorrelation, loading: analyticsLoading } = useConsumptionAnalytics(contractId);
 
-  if (loading || !contract) {
+  if (loading || analyticsLoading || !contract) {
     return (
       <div className="h-full w-full flex items-center justify-center">
         <Loader />
@@ -160,16 +160,16 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      {/* 5. Cost efficiency */}
+      {/* 5. Temperature vs consumption */}
       <section>
-        <h2 className="text-2xl">Cost Efficiency</h2>
+        <h2 className="text-2xl">Weather Impact</h2>
         <p className="text-muted-foreground max-w-lg text-pretty">
-          Cost per kWh over time. Rising values mean you&apos;re paying more for
-          the same unit of energy.
+          Monthly consumption alongside average temperature. Peaks reveal how
+          heating and cooling drive your energy use.
         </p>
 
         <div className="mt-4">
-          <CostEfficiencyChart data={monthly} />
+          <TempCorrelationChart data={tempCorrelation} />
         </div>
       </section>
     </div>
