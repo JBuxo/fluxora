@@ -6,12 +6,14 @@ import type {
   ConsumptionSummary,
   HeatmapPoint,
   MonthlyDataPoint,
+  TempCorrelationPoint,
 } from "@/lib/types/api";
 
 interface State {
   summary: ConsumptionSummary | null;
   monthly: MonthlyDataPoint[];
   heatmap: HeatmapPoint[];
+  tempCorrelation: TempCorrelationPoint[];
   loading: boolean;
 }
 
@@ -21,6 +23,7 @@ export function useConsumptionAnalytics(supplyPointId: string | null): State {
     summary: null,
     monthly: [],
     heatmap: [],
+    tempCorrelation: [],
     loading: true,
   });
 
@@ -38,9 +41,10 @@ export function useConsumptionAnalytics(supplyPointId: string | null): State {
       fetch(`${base}/summary`, { headers: h }).then((r) => r.json()),
       fetch(`${base}/monthly`, { headers: h }).then((r) => r.json()),
       fetch(`${base}/heatmap`, { headers: h }).then((r) => r.json()),
+      fetch(`${base}/temp-correlation`, { headers: h }).then((r) => r.json()),
     ])
-      .then(([summary, monthly, heatmap]) =>
-        setState({ summary, monthly, heatmap, loading: false })
+      .then(([summary, monthly, heatmap, tempCorrelation]) =>
+        setState({ summary, monthly, heatmap, tempCorrelation, loading: false })
       )
       .catch(() => setState((s) => ({ ...s, loading: false })));
   }, [supplyPointId, authHeader]);

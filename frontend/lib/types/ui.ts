@@ -14,6 +14,7 @@ export interface Anomaly {
 }
 
 export interface ConsumptionReport {
+  id?: string;
   name: string;
   url: string;
   date: Date;

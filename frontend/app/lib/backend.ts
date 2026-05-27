@@ -25,6 +25,7 @@ export async function backendFetch(
       ...(init?.headers ?? {}),
     },
   });
+  if (res.status === 204) return new Response(null, { status: 204 });
   const data = await res.text();
   return new Response(data, {
     status: res.status,

@@ -1,16 +1,24 @@
+import json
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
-from sqlmodel import Session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from sqlmodel import Session, select
 
 from app.core.deps import current_user
 from app.db.database import get_session
+from app.models.saved_report import SavedReport
 from app.routes.analytics import _owned_supply_point, _fetch_records
 
 router = APIRouter(prefix="/supply-points", tags=["report"])
+
+
+class ReportRequest(BaseModel):
+    from_dt: datetime
+    to_dt: datetime
 
 
 def _classify_tou(weekday: int, hour: int) -> str:
@@ -155,28 +163,15 @@ def _suggestions(heatmap, summary, tou):
     return suggestions
 
 
-@router.get("/{sp_id}/report")
-def get_report(
-    sp_id: uuid.UUID,
-    user_id: uuid.UUID = Depends(current_user),
-    session: Session = Depends(get_session),
-    from_dt: Optional[datetime] = Query(None),
-    to_dt: Optional[datetime] = Query(None),
-):
-    sp = _owned_supply_point(sp_id, user_id, session)
-
-    if from_dt is None or to_dt is None:
-        to_dt = datetime.now(timezone.utc)
-        from_dt = to_dt - timedelta(days=90)
-
+def _build_report(sp, from_dt, to_dt, session):
     period_days = max((to_dt - from_dt).days, 1)
-    records = _fetch_records(sp_id, from_dt, to_dt, session)
+    records = _fetch_records(sp.id, from_dt, to_dt, session)
 
     total_kwh = sum(r.consumption_kwh for r in records)
     total_cost = sum(r.cost_estimate or 0 for r in records)
     avg_daily_kwh = round(total_kwh / period_days, 3)
 
-    prev_records = _fetch_records(sp_id, from_dt - timedelta(days=period_days), from_dt, session)
+    prev_records = _fetch_records(sp.id, from_dt - timedelta(days=period_days), from_dt, session)
     prev_kwh = sum(r.consumption_kwh for r in prev_records)
     raw_trend = (total_kwh - prev_kwh) / prev_kwh * 100 if prev_kwh > 0 else 0.0
     trend_pct = round(max(-999.0, min(999.0, raw_trend)), 1)
@@ -212,3 +207,111 @@ def get_report(
         "tou": tou,
         "suggestions": _suggestions(heatmap, summary, tou),
     }
+
+
+@router.post("/{sp_id}/report")
+def create_report(
+    sp_id: uuid.UUID,
+    body: ReportRequest,
+    user_id: uuid.UUID = Depends(current_user),
+    session: Session = Depends(get_session),
+):
+    sp = _owned_supply_point(sp_id, user_id, session)
+
+    from_date = body.from_dt.date()
+    to_date = body.to_dt.date()
+
+    existing = session.exec(
+        select(SavedReport).where(
+            SavedReport.supply_point_id == sp_id,
+            SavedReport.user_id == user_id,
+        )
+    ).all()
+    for row in existing:
+        if row.period_from.date() == from_date and row.period_to.date() == to_date:
+            return {**json.loads(row.report_data), "id": str(row.id)}
+
+    report = _build_report(sp, body.from_dt, body.to_dt, session)
+
+    saved = SavedReport(
+        supply_point_id=sp_id,
+        user_id=user_id,
+        period_from=body.from_dt,
+        period_to=body.to_dt,
+        period_days=report["period"]["days"],
+        total_kwh=report["summary"]["total_kwh"],
+        record_count=report["summary"]["record_count"],
+        report_data=json.dumps(report),
+    )
+    session.add(saved)
+    session.commit()
+    session.refresh(saved)
+
+    return {**report, "id": str(saved.id)}
+
+
+@router.get("/{sp_id}/reports")
+def list_reports(
+    sp_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(current_user),
+    session: Session = Depends(get_session),
+):
+    _owned_supply_point(sp_id, user_id, session)
+    rows = session.exec(
+        select(SavedReport)
+        .where(SavedReport.supply_point_id == sp_id, SavedReport.user_id == user_id)
+        .order_by(SavedReport.generated_at.desc())
+    ).all()
+    return [
+        {
+            "id": str(r.id),
+            "generated_at": r.generated_at.isoformat(),
+            "period_from": r.period_from.isoformat(),
+            "period_to": r.period_to.isoformat(),
+            "period_days": r.period_days,
+            "total_kwh": r.total_kwh,
+            "record_count": r.record_count,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/{sp_id}/reports/{report_id}")
+def get_report(
+    sp_id: uuid.UUID,
+    report_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(current_user),
+    session: Session = Depends(get_session),
+):
+    _owned_supply_point(sp_id, user_id, session)
+    saved = session.exec(
+        select(SavedReport).where(
+            SavedReport.id == report_id,
+            SavedReport.supply_point_id == sp_id,
+            SavedReport.user_id == user_id,
+        )
+    ).first()
+    if not saved:
+        raise HTTPException(404, "Report not found")
+    return {**json.loads(saved.report_data), "id": str(saved.id)}
+
+
+@router.delete("/{sp_id}/reports/{report_id}", status_code=204)
+def delete_report(
+    sp_id: uuid.UUID,
+    report_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(current_user),
+    session: Session = Depends(get_session),
+):
+    _owned_supply_point(sp_id, user_id, session)
+    saved = session.exec(
+        select(SavedReport).where(
+            SavedReport.id == report_id,
+            SavedReport.supply_point_id == sp_id,
+            SavedReport.user_id == user_id,
+        )
+    ).first()
+    if not saved:
+        raise HTTPException(404, "Report not found")
+    session.delete(saved)
+    session.commit()

@@ -4,7 +4,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -16,80 +15,84 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ConsumptionReport } from "@/lib/types/ui";
-import {
-  MoreHorizontalIcon,
-  FolderIcon,
-  ArrowRightIcon,
-  Trash2Icon,
-  Icon,
-} from "lucide-react";
+import type { ConsumptionReport } from "@/lib/types/ui";
+import { MoreHorizontalIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 
-export function NavReports({ reports }: { reports: ConsumptionReport[] }) {
+interface Props {
+  reports: ConsumptionReport[];
+  hasMore?: boolean;
+  onDelete?: (report: ConsumptionReport) => void;
+}
+
+export function NavReports({ reports, hasMore = false, onDelete }: Props) {
   const { isMobile } = useSidebar();
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Reports</SidebarGroupLabel>
       <SidebarMenu>
-        {reports.map((report) => {
-          return (
-            <SidebarMenuItem key={report.name}>
-              <SidebarMenuButton asChild>
-                <a href={report.url}>
-                  {/* <Icon /> */}
-                  <Badge>
-                    {report.date.toLocaleDateString("en-GB", {
-                      day: "numeric",
-                      month: "short",
-                    })}
-                  </Badge>
-                  <span>{report.name}</span>
-                </a>
-              </SidebarMenuButton>
+        {reports.map((report) => (
+          <SidebarMenuItem key={report.url}>
+            <SidebarMenuButton asChild>
+              <Link href={report.url}>
+                <Badge>
+                  {report.date.toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                  })}
+                </Badge>
+                <span>{report.name}</span>
+              </Link>
+            </SidebarMenuButton>
+            {onDelete && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <SidebarMenuAction
-                    showOnHover
-                    className="aria-expanded:bg-muted"
-                  >
+                  <SidebarMenuAction showOnHover className="aria-expanded:bg-muted">
                     <MoreHorizontalIcon />
                     <span className="sr-only">More</span>
                   </SidebarMenuAction>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
-                  className="w-48 rounded-lg"
+                  className="w-40 rounded-lg"
                   side={isMobile ? "bottom" : "right"}
                   align={isMobile ? "end" : "start"}
                 >
-                  <DropdownMenuItem>
-                    <FolderIcon className="text-muted-foreground" />
-                    <span>View Project</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <ArrowRightIcon className="text-muted-foreground" />
-                    <span>Share Project</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <Trash2Icon className="text-muted-foreground" />
-                    <span>Delete Project</span>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => onDelete(report)}
+                  >
+                    <Trash2Icon className="text-destructive" />
+                    <span>Delete Report</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </SidebarMenuItem>
-          );
-        })}
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild className="text-sidebar-foreground/70">
-            <Link href="/reports">
-              <MoreHorizontalIcon className="text-sidebar-foreground/70" />
-              <span>More</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+            )}
+          </SidebarMenuItem>
+        ))}
+
+        {reports.length === 0 && (
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild className="text-sidebar-foreground/70">
+              <Link href="/reports/create">
+                <PlusIcon className="text-sidebar-foreground/70" />
+                <span>Create New</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
+
+        {hasMore && (
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild className="text-sidebar-foreground/70">
+              <Link href="/reports">
+                <MoreHorizontalIcon className="text-sidebar-foreground/70" />
+                <span>More</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
       </SidebarMenu>
     </SidebarGroup>
   );
