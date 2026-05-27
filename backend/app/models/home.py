@@ -17,6 +17,9 @@ class Home(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True)
     name: str
     address: str
+    weather_location_id: Optional[uuid.UUID] = Field(
+        default=None, foreign_key="weather_locations.id", index=True
+    )
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
 

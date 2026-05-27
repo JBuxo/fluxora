@@ -41,7 +41,7 @@ export function useContract() {
               id: sp.id,
               homeId: home.id,
               name: home.name,
-              tariff: sp.active_contract?.tariff_name ?? "—",
+              tariff: (sp.address?.split(",")[0] || home.name).trim(),
               logo: GalleryVerticalEndIcon,
             };
             if (!resolved) resolved = candidate;
