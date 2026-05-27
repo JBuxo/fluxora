@@ -6,12 +6,16 @@ import pandas as pd
 from prophet import Prophet
 from sqlmodel import Session, select
 
-from app.models import ConsumptionRecord, SupplyPoint
+from app.models import ConsumptionRecord, Home, SupplyPoint
 from app.models.anomaly_record import AnomalyRecord
 from app.models.forecast_record import ForecastRecord
 from app.models.usage_profile import UsageProfile
+from app.models.weather_record import WeatherRecord
 
 ANOMALY_Z_THRESHOLD = 2.0
+
+# Spain 2.0TD peak hours per weekday (P1: 10-14, 18-22 → 8 hours / 24)
+_TARIFF_WEEKDAY_SCORE = 8.0 / 24.0
 
 
 def _occupants_to_float(value: str | None) -> float:
@@ -75,6 +79,22 @@ def _active_hours(wake: str | None, sleep: str | None) -> float:
     return max(s - w, 8.0)
 
 
+def _tariff_score(ds: pd.Series) -> pd.Series:
+    """Daily fraction of hours in P1 (peak) under Spain 2.0TD. Weekends/holidays → 0."""
+    return ds.dt.dayofweek.apply(lambda dow: _TARIFF_WEEKDAY_SCORE if dow < 5 else 0.0)
+
+
+def _load_weather(home_id: uuid.UUID, session: Session) -> dict[date, float]:
+    """Returns {date: temp_mean_c} via the home's shared weather location."""
+    home = session.get(Home, home_id)
+    if not home or not home.weather_location_id:
+        return {}
+    records = session.exec(
+        select(WeatherRecord).where(WeatherRecord.location_id == home.weather_location_id)
+    ).all()
+    return {r.record_date: r.temp_mean_c for r in records if r.temp_mean_c is not None}
+
+
 def run_forecast(home_id: uuid.UUID, session: Session) -> int:
     supply_point_ids = [
         sp.id
@@ -113,19 +133,34 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
     df["electric_hot_water"] = hot_water
     df["appliance_load"] = appliances
     df["active_hours"] = active_hrs
+    df["tariff_peak"] = _tariff_score(df["ds"])
+
+    # Weather: join temperature, fall back to mean if missing
+    weather_map = _load_weather(home_id, session)
+    if weather_map:
+        fallback_temp = float(np.mean(list(weather_map.values())))
+        df["temperature"] = df["ds"].dt.date.map(lambda d: weather_map.get(d, fallback_temp))
+    else:
+        df["temperature"] = 15.0  # reasonable Spain annual mean
+    use_weather = weather_map != {}
 
     model = Prophet(
-        yearly_seasonality=True,
+        yearly_seasonality=20,
         weekly_seasonality=True,
         daily_seasonality=False,
         interval_width=0.99,
+        seasonality_mode="multiplicative",
     )
+    model.add_country_holidays(country_name="ES")
     model.add_regressor("occupants")
     model.add_regressor("work_from_home")
     model.add_regressor("heating_load")
     model.add_regressor("electric_hot_water")
     model.add_regressor("appliance_load")
     model.add_regressor("active_hours")
+    model.add_regressor("tariff_peak")
+    if use_weather:
+        model.add_regressor("temperature")
     model.fit(df)
 
     now = datetime.now(timezone.utc)
@@ -141,6 +176,12 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
     future["electric_hot_water"] = hot_water
     future["appliance_load"] = appliances
     future["active_hours"] = active_hrs
+    future["tariff_peak"] = _tariff_score(future["ds"])
+    if use_weather:
+        fallback_temp = float(np.mean(list(weather_map.values())))
+        future["temperature"] = future["ds"].dt.date.map(
+            lambda d: weather_map.get(d, fallback_temp)
+        )
 
     forecast = model.predict(future)
 
@@ -176,7 +217,11 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
         upserted += 1
 
     # ── Historical anomaly detection ─────────────────────────────────────────
-    hist = df[["ds", "y", "occupants", "work_from_home", "heating_load", "electric_hot_water", "appliance_load", "active_hours"]].copy()
+    hist_cols = ["ds", "y", "occupants", "work_from_home", "heating_load",
+                 "electric_hot_water", "appliance_load", "active_hours", "tariff_peak"]
+    if use_weather:
+        hist_cols.append("temperature")
+    hist = df[hist_cols].copy()
     hist_pred = model.predict(hist)
 
     residuals = df["y"].values - hist_pred["yhat"].values
@@ -220,7 +265,6 @@ def run_forecast(home_id: uuid.UUID, session: Session) -> int:
                 residual_kwh=round(residual, 3),
                 z_score=round(z, 3),
                 is_anomaly=z >= ANOMALY_Z_THRESHOLD,
-                run_at=now,
             ))
 
     session.commit()

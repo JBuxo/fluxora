@@ -27,7 +27,7 @@ export function useContracts(): { contracts: Contract[]; loading: boolean } {
             home.supply_points.map((sp) => ({
               id: sp.id,
               name: home.name,
-              tariff: sp.active_contract?.tariff_name ?? "—",
+              tariff: (sp.address?.split(",")[0] || home.name).trim(),
               logo: GalleryVerticalEndIcon,
             })),
           ),

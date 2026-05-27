@@ -1,7 +1,7 @@
 import uuid
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -9,11 +9,17 @@ from app.core.deps import current_user
 from app.db.database import get_session
 from app.models import Contract, Home, SupplyPoint
 from app.models.enums import ContractStatus
+from app.services.weather import assign_weather_location, sync_weather
 
 
 class HomeCreate(BaseModel):
     name: str
     address: str = ""
+
+
+class HomeUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
 
 
 class TariffRatesIn(BaseModel):
@@ -33,9 +39,19 @@ def list_homes(
     return session.exec(select(Home).where(Home.user_id == user_id)).all()
 
 
+def _geocode_and_sync_task(home_id: uuid.UUID) -> None:
+    from app.db.database import engine
+    with Session(engine) as s:
+        loc = assign_weather_location(home_id, s)
+        s.commit()
+        if loc:
+            sync_weather(loc.id, s)
+
+
 @router.post("", response_model=Home, status_code=201)
 def create_home(
     body: HomeCreate,
+    background_tasks: BackgroundTasks,
     user_id: uuid.UUID = Depends(current_user),
     session: Session = Depends(get_session),
 ):
@@ -43,6 +59,8 @@ def create_home(
     session.add(home)
     session.commit()
     session.refresh(home)
+    if body.address:
+        background_tasks.add_task(_geocode_and_sync_task, home.id)
     return home
 
 
@@ -95,6 +113,26 @@ def get_home(
     home = session.get(Home, home_id)
     if not home or home.user_id != user_id:
         raise HTTPException(status_code=404, detail="Home not found")
+    return home
+
+
+@router.put("/{home_id}", response_model=Home)
+def update_home(
+    home_id: uuid.UUID,
+    body: HomeUpdate,
+    user_id: uuid.UUID = Depends(current_user),
+    session: Session = Depends(get_session),
+):
+    home = session.get(Home, home_id)
+    if not home or home.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Home not found")
+    if body.name is not None:
+        home.name = body.name
+    if body.address is not None:
+        home.address = body.address
+    session.add(home)
+    session.commit()
+    session.refresh(home)
     return home
 
 

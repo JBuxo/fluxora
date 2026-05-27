@@ -9,6 +9,8 @@ from .datadis_sync_job import DatadisSyncJob
 from .usage_profile import UsageProfile
 from .forecast_record import ForecastRecord
 from .anomaly_record import AnomalyRecord
+from .weather_location import WeatherLocation
+from .weather_record import WeatherRecord
 
 __all__ = [
     "User",
@@ -22,4 +24,6 @@ __all__ = [
     "UsageProfile",
     "ForecastRecord",
     "AnomalyRecord",
+    "WeatherLocation",
+    "WeatherRecord",
 ]

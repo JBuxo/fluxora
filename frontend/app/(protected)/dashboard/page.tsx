@@ -1,6 +1,5 @@
 "use client";
 
-import { DateRangePicker } from "@/components/sections/date-range-picker";
 import {
   Card,
   CardContent,
@@ -64,10 +63,6 @@ export default function DashboardPage() {
           High-level snapshot of historical consumption and cost based on
           uploaded distributor reports.
         </p>
-
-        <div className="mt-4">
-          <DateRangePicker date={date} setDate={setDate} />
-        </div>
 
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
@@ -167,7 +162,10 @@ export default function DashboardPage() {
 
         <div className="mt-4 grid md:grid-cols-3 gap-4 relative">
           <div className="md:col-span-2 space-y-4">
-            <AnomalyScatterChart data={anomalies.filter((a) => a.is_anomaly)} allData={anomalies} />
+            <AnomalyScatterChart
+              data={anomalies.filter((a) => a.is_anomaly)}
+              allData={anomalies}
+            />
             <ConfidenceBandChart daily={forecast?.daily ?? []} />
           </div>
 
@@ -178,29 +176,47 @@ export default function DashboardPage() {
 
             <CardContent className="space-y-2">
               {anomalies.filter((a) => a.is_anomaly).length === 0 && (
-                <p className="text-xs text-muted-foreground">No anomalies detected in the last 90 days.</p>
+                <p className="text-xs text-muted-foreground">
+                  No anomalies detected in the last 90 days.
+                </p>
               )}
-              {anomalies.filter((a) => a.is_anomaly).map((a) => {
-                const pct = a.predicted_kwh > 0
-                  ? Math.round(((a.actual_kwh - a.predicted_kwh) / a.predicted_kwh) * 100)
-                  : 0;
-                return (
-                  <div
-                    key={a.date}
-                    className="flex items-center justify-between rounded-md bg-accent p-2"
-                  >
-                    <div>
-                      <div className="font-medium leading-tight">{a.date}</div>
-                      <div className="text-xs text-muted-foreground leading-3">
-                        {a.actual_kwh.toFixed(1)} kWh actual · {a.predicted_kwh.toFixed(1)} kWh expected
+              {anomalies
+                .filter((a) => a.is_anomaly)
+                .map((a) => {
+                  const pct =
+                    a.predicted_kwh > 0
+                      ? Math.round(
+                          ((a.actual_kwh - a.predicted_kwh) / a.predicted_kwh) *
+                            100,
+                        )
+                      : 0;
+                  return (
+                    <div
+                      key={a.date}
+                      className="flex items-center justify-between rounded-md bg-accent p-2"
+                    >
+                      <div>
+                        <div className="font-medium leading-tight">
+                          {a.date}
+                        </div>
+                        <div className="text-xs text-muted-foreground leading-3">
+                          {a.actual_kwh.toFixed(1)} kWh actual ·{" "}
+                          {a.predicted_kwh.toFixed(1)} kWh expected
+                        </div>
+                      </div>
+                      <div
+                        className={
+                          pct >= 0
+                            ? "text-destructive font-semibold"
+                            : "text-green-600 font-semibold"
+                        }
+                      >
+                        {pct >= 0 ? "+" : ""}
+                        {pct}%
                       </div>
                     </div>
-                    <div className={pct >= 0 ? "text-destructive font-semibold" : "text-green-600 font-semibold"}>
-                      {pct >= 0 ? "+" : ""}{pct}%
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </CardContent>
           </Card>
         </div>

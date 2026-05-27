@@ -68,6 +68,8 @@ const defaultRates: TariffRates = {
   powerRateValleyKwDay: "0.058877",
 };
 
+type DiscoveredHome = { id: string; name: string; cups: string };
+
 // ── Primitives ─────────────────────────────────────────────────────────────
 
 function Q({
@@ -137,7 +139,17 @@ function DatadisSourceStep() {
   );
 }
 
-function ConnectDatadisStep() {
+function ConnectDatadisStep({
+  dni,
+  setDni,
+  password,
+  setPassword,
+}: {
+  dni: string;
+  setDni: (v: string) => void;
+  password: string;
+  setPassword: (v: string) => void;
+}) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -145,7 +157,12 @@ function ConnectDatadisStep() {
       <div className="space-y-4 max-w-md mx-auto">
         <div className="space-y-2">
           <Label htmlFor="dni">DNI</Label>
-          <Input id="dni" placeholder="12345678A" />
+          <Input
+            id="dni"
+            placeholder="12345678A"
+            value={dni}
+            onChange={(e) => setDni(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="datadis_password">Password</Label>
@@ -154,12 +171,14 @@ function ConnectDatadisStep() {
               id="datadis_password"
               type={showPassword ? "text" : "password"}
               className="pr-10"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="absolute right-0 top-0  px-3 text-muted-foreground hover:text-foreground"
+              className="absolute right-0 top-0 px-3 text-muted-foreground hover:text-foreground"
               onClick={() => setShowPassword((v) => !v)}
             >
               {showPassword ? (
@@ -453,7 +472,57 @@ function TariffStep({
   );
 }
 
-// ── Sync success animation ────────────────────────────────────────────────
+// ── Post-sync screens ──────────────────────────────────────────────────────
+
+function RenameHomesStep({
+  homes,
+  names,
+  setName,
+  onConfirm,
+}: {
+  homes: DiscoveredHome[];
+  names: Record<string, string>;
+  setName: (id: string, name: string) => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col items-center gap-2 pt-2">
+        <CheckCircle2
+          className="w-12 h-12 text-primary animate-in zoom-in-50 duration-500"
+          strokeWidth={1.5}
+        />
+        <p className="font-semibold text-base">
+          {homes.length === 1
+            ? "Supply point found!"
+            : `${homes.length} supply points found!`}
+        </p>
+        <p className="text-sm text-muted-foreground text-center">
+          Give {homes.length === 1 ? "it" : "them"} a name you&apos;ll recognise.
+        </p>
+      </div>
+
+      <div className="space-y-3 max-w-md mx-auto w-full">
+        {homes.map((h) => (
+          <div key={h.id} className="space-y-1">
+            <Label htmlFor={`home-name-${h.id}`} className="text-xs text-muted-foreground">
+              {h.cups}
+            </Label>
+            <Input
+              id={`home-name-${h.id}`}
+              value={names[h.id] ?? h.name}
+              onChange={(e) => setName(h.id, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+
+      <Button onClick={onConfirm} className="w-full max-w-md mx-auto">
+        Go to dashboard
+      </Button>
+    </div>
+  );
+}
 
 function SyncSuccess() {
   return (
@@ -479,68 +548,97 @@ export default function ConfigWizard() {
   const [dir, setDir] = useState<"forward" | "back">("forward");
   const [pattern, setPattern] = useState<UsagePattern>(defaultPattern);
   const [rates, setRates] = useState<TariffRates>(defaultRates);
+  const [dni, setDni] = useState("");
+  const [password, setPassword] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
   const [cardHeight, setCardHeight] = useState<number | undefined>(undefined);
   const [syncing, setSyncing] = useState(false);
   const [syncDone, setSyncDone] = useState(false);
+  const [discoveredHomes, setDiscoveredHomes] = useState<DiscoveredHome[]>([]);
+  const [homeNames, setHomeNames] = useState<Record<string, string>>({});
   const router = useRouter();
   const { authHeader } = useAuth();
+
+  function setHomeName(id: string, name: string) {
+    setHomeNames((prev) => ({ ...prev, [id]: name }));
+  }
 
   async function handleFinish() {
     setSyncing(true);
     try {
       const headers = { "Content-Type": "application/json", Authorization: authHeader };
 
-      const createRes = await fetch("/api/homes", {
+      // One Datadis call: store credentials + fetch all CUPS + auto-create homes
+      const syncRes = await fetch("/api/datadis/sync", {
         method: "POST",
         headers,
-        body: JSON.stringify({ name: "My Home" }),
+        body: JSON.stringify({
+          nif: dni || undefined,
+          password: password || undefined,
+        }),
       });
-      if (!createRes.ok) return;
 
-      const home = await createRes.json();
+      const syncData = syncRes.ok ? await syncRes.json() : { homes: [] };
+      const homes: DiscoveredHome[] = syncData.homes ?? [];
 
-      await fetch(`/api/homes/${home.id}/sync`, { method: "POST", headers });
+      // Apply profile + tariff to every home (in parallel per home)
+      const profileBody = JSON.stringify({
+        occupants: pattern.occupants || null,
+        home_size: pattern.homeSize || null,
+        heating_type: pattern.heatingType || null,
+        hot_water: pattern.hotWater || null,
+        appliances: pattern.appliances,
+        home_days: pattern.homeDays,
+        work_from_home: pattern.workFromHome || null,
+        wake_time: pattern.wakeTime || null,
+        sleep_time: pattern.sleepTime || null,
+        laundry_time: pattern.laundryTime || null,
+        cooking_meals: pattern.cookingMeals,
+      });
 
-      await Promise.all([
-        fetch(`/api/homes/${home.id}/usage-profile`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({
-            occupants: pattern.occupants || null,
-            home_size: pattern.homeSize || null,
-            heating_type: pattern.heatingType || null,
-            hot_water: pattern.hotWater || null,
-            appliances: pattern.appliances,
-            home_days: pattern.homeDays,
-            work_from_home: pattern.workFromHome || null,
-            wake_time: pattern.wakeTime || null,
-            sleep_time: pattern.sleepTime || null,
-            laundry_time: pattern.laundryTime || null,
-            cooking_meals: pattern.cookingMeals,
-          }),
-        }),
-        fetch(`/api/homes/${home.id}/tariff`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({
-            energy_rate_kwh: rates.energyRateKwh ? parseFloat(rates.energyRateKwh) : null,
-            power_rate_peak_kw_day: rates.powerRatePeakKwDay ? parseFloat(rates.powerRatePeakKwDay) : null,
-            power_rate_valley_kw_day: rates.powerRateValleyKwDay ? parseFloat(rates.powerRateValleyKwDay) : null,
-          }),
-        }),
-      ]);
+      const tariffBody = JSON.stringify({
+        energy_rate_kwh: rates.energyRateKwh ? parseFloat(rates.energyRateKwh) : null,
+        power_rate_peak_kw_day: rates.powerRatePeakKwDay ? parseFloat(rates.powerRatePeakKwDay) : null,
+        power_rate_valley_kw_day: rates.powerRateValleyKwDay ? parseFloat(rates.powerRateValleyKwDay) : null,
+      });
 
-      setSyncDone(true);
+      await Promise.all(
+        homes.flatMap((h) => [
+          fetch(`/api/homes/${h.id}/usage-profile`, { method: "PUT", headers, body: profileBody }),
+          fetch(`/api/homes/${h.id}/tariff`, { method: "PUT", headers, body: tariffBody }),
+        ])
+      );
+
+      if (homes.length > 0) {
+        setDiscoveredHomes(homes);
+      } else {
+        setSyncDone(true);
+      }
     } catch {
-      setSyncDone(true); // still proceed on error
+      setSyncDone(true);
     }
+  }
+
+  async function handleRenameConfirm() {
+    const headers = { "Content-Type": "application/json", Authorization: authHeader };
+    await Promise.all(
+      discoveredHomes
+        .filter((h) => homeNames[h.id] && homeNames[h.id] !== h.name)
+        .map((h) =>
+          fetch(`/api/homes/${h.id}`, {
+            method: "PUT",
+            headers,
+            body: JSON.stringify({ name: homeNames[h.id] }),
+          })
+        )
+    );
+    router.push("/dashboard");
   }
 
   useEffect(() => {
     if (!syncDone) return;
-    const redirectTimer = setTimeout(() => router.push("/dashboard"), 2000);
-    return () => clearTimeout(redirectTimer);
+    const t = setTimeout(() => router.push("/dashboard"), 2000);
+    return () => clearTimeout(t);
   }, [syncDone, router]);
 
   useLayoutEffect(() => {
@@ -566,7 +664,14 @@ export default function ConfigWizard() {
     },
     {
       title: "Connect to Fluxora",
-      content: <ConnectDatadisStep />,
+      content: (
+        <ConnectDatadisStep
+          dni={dni}
+          setDni={setDni}
+          password={password}
+          setPassword={setPassword}
+        />
+      ),
     },
     {
       title: "About your home",
@@ -670,12 +775,19 @@ export default function ConfigWizard() {
       <Dialog open={syncing} onOpenChange={setSyncing}>
         <DialogContent
           showCloseButton={false}
-          className="sm:max-w-xs text-center"
+          className="sm:max-w-sm text-center"
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           {syncDone ? (
             <SyncSuccess />
+          ) : discoveredHomes.length > 0 ? (
+            <RenameHomesStep
+              homes={discoveredHomes}
+              names={homeNames}
+              setName={setHomeName}
+              onConfirm={handleRenameConfirm}
+            />
           ) : (
             <>
               <DialogHeader>
