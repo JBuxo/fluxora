@@ -90,18 +90,16 @@ export default function DashboardPage() {
               title: "Spent So Far",
               description: "Variable cost this month",
               value: summary ? `€${summary.mtd_cost.toFixed(2)}` : "—",
-              hint: forecast
-                ? `at €${forecast.bill_estimate.energy_rate_kwh.toFixed(4)}/kWh`
-                : "Based on contract rate",
+              hint: "Based on contract rate",
             },
             {
               title: "Projected Bill",
               description: "End of month estimate",
               value: forecast
-                ? `€${forecast.bill_estimate.estimated_bill_eur.toFixed(2)}`
+                ? `€${forecast.bill_estimate.bill_low_eur.toFixed(0)} – €${forecast.bill_estimate.bill_high_eur.toFixed(0)}`
                 : "—",
               hint: forecast
-                ? `${forecast.bill_estimate.total_projected_kwh.toFixed(0)} kWh total · ${forecast.bill_estimate.days_remaining}d left`
+                ? `~€${forecast.bill_estimate.estimated_bill_eur.toFixed(2)} · ${forecast.bill_estimate.total_projected_kwh.toFixed(0)} kWh · ${forecast.bill_estimate.days_remaining}d left`
                 : "Forecast pending",
             },
           ].map((kpi) => (
