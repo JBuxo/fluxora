@@ -59,10 +59,17 @@ export interface BillEstimate {
   mtd_actual_kwh: number;
   projected_remaining_kwh: number;
   total_projected_kwh: number;
-  energy_rate_kwh: number;
-  variable_cost_eur: number;
-  fixed_cost_eur: number | null;
+  projected_p1_kwh: number;
+  projected_p2_kwh: number;
+  energy_cost_eur: number;
+  power_cost_eur: number;
+  cargos_eur: number;
+  meter_rent_eur: number;
+  iee_eur: number;
+  iva_eur: number;
   estimated_bill_eur: number;
+  bill_low_eur: number;
+  bill_high_eur: number;
   days_remaining: number;
 }
 

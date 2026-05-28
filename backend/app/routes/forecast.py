@@ -1,5 +1,3 @@
-import json
-import os
 import uuid
 from calendar import monthrange
 from datetime import date, datetime, timedelta, timezone
@@ -14,13 +12,9 @@ from app.db.database import get_session
 from app.models import ConsumptionRecord, Contract, Home, SupplyPoint
 from app.models.enums import ContractStatus
 from app.models.forecast_record import ForecastRecord
+from app.services.tariff import BillBreakdown, build_hourly_profile, compute_bill, disaggregate_daily
 
 router = APIRouter(prefix="/homes", tags=["forecast"])
-
-DEFAULT_RATE = float(os.getenv("DEFAULT_RATE_EUR_KWH", "0.19"))
-# 2.0TD regulated access tariff power rates (CNMC) — used when contract has no stored rates
-DEFAULT_POWER_RATE_PEAK = float(os.getenv("DEFAULT_POWER_RATE_PEAK_KW_DAY", "0.102811"))
-DEFAULT_POWER_RATE_VALLEY = float(os.getenv("DEFAULT_POWER_RATE_VALLEY_KW_DAY", "0.047511"))
 
 
 class DailyForecast(BaseModel):
@@ -31,13 +25,28 @@ class DailyForecast(BaseModel):
 
 
 class BillEstimate(BaseModel):
+    # kWh breakdown
     mtd_actual_kwh: float
     projected_remaining_kwh: float
     total_projected_kwh: float
-    energy_rate_kwh: float
-    variable_cost_eur: float
-    fixed_cost_eur: float | None
+
+    # P1/P2 split for remaining period
+    projected_p1_kwh: float
+    projected_p2_kwh: float
+
+    # Cost breakdown (central estimate)
+    energy_cost_eur: float
+    power_cost_eur: float
+    cargos_eur: float
+    meter_rent_eur: float
+    iee_eur: float
+    iva_eur: float
+
+    # Final totals with confidence range
     estimated_bill_eur: float
+    bill_low_eur: float
+    bill_high_eur: float
+
     days_remaining: int
 
 
@@ -67,20 +76,27 @@ def get_forecast(
         for sp in session.exec(select(SupplyPoint).where(SupplyPoint.home_id == home_id)).all()
     ]
 
+    # ── Month-to-date actual consumption ─────────────────────────────────────
     mtd_actual_kwh = 0.0
+    historical_records: list[ConsumptionRecord] = []
     if supply_point_ids:
-        records = session.exec(
+        historical_records = session.exec(
             select(ConsumptionRecord).where(
                 ConsumptionRecord.supply_point_id.in_(supply_point_ids),
-                ConsumptionRecord.timestamp >= datetime(today.year, today.month, 1, tzinfo=timezone.utc),
-                ConsumptionRecord.timestamp < datetime(today.year, today.month, today.day, tzinfo=timezone.utc),
             )
         ).all()
-        mtd_actual_kwh = sum(r.consumption_kwh for r in records)
 
+        mtd_start = datetime(today.year, today.month, 1)
+        mtd_end = datetime(today.year, today.month, today.day)
+        mtd_records = [
+            r for r in historical_records
+            if mtd_start <= r.timestamp.replace(tzinfo=None) < mtd_end
+        ]
+        mtd_actual_kwh = sum(r.consumption_kwh for r in mtd_records)
+
+    # ── Forecast records ──────────────────────────────────────────────────────
     rolling_end = today + timedelta(days=30)
 
-    # full 30-day window for the chart
     daily_forecasts = session.exec(
         select(ForecastRecord).where(
             ForecastRecord.home_id == home_id,
@@ -89,16 +105,11 @@ def get_forecast(
         ).order_by(ForecastRecord.forecast_date)
     ).all()
 
-    # current-month only for bill estimate
-    forecasts = session.exec(
-        select(ForecastRecord).where(
-            ForecastRecord.home_id == home_id,
-            ForecastRecord.forecast_date >= today,
-            ForecastRecord.forecast_date <= month_end,
-        ).order_by(ForecastRecord.forecast_date)
-    ).all()
+    # Current-month remaining days only (for bill estimate)
+    month_forecasts = [f for f in daily_forecasts if f.forecast_date <= month_end]
 
-    active_contract = None
+    # ── Active contract ───────────────────────────────────────────────────────
+    active_contract: Contract | None = None
     if supply_point_ids:
         for sp_id in supply_point_ids:
             c = session.exec(
@@ -111,36 +122,60 @@ def get_forecast(
                 active_contract = c
                 break
 
-    energy_rate = (
-        active_contract.energy_rate_kwh
-        if active_contract and active_contract.energy_rate_kwh is not None
-        else DEFAULT_RATE
-    )
+    # ── Build hourly profile + disaggregate ───────────────────────────────────
+    hourly_profile = build_hourly_profile(historical_records)
+    hourly_month_forecast = disaggregate_daily(month_forecasts, hourly_profile)
 
-    projected_remaining_kwh = sum(f.predicted_kwh for f in forecasts)
-    total_projected_kwh = mtd_actual_kwh + projected_remaining_kwh
-    variable_cost = round(total_projected_kwh * energy_rate, 2)
-
-    fixed_cost = None
-    if active_contract:
-        powers_raw = active_contract.contracted_powers_kw
-        if powers_raw:
-            try:
-                powers = json.loads(powers_raw) if isinstance(powers_raw, str) else list(powers_raw)
-                peak_kw = float(powers[0]) if powers else 0.0
-                valley_kw = float(powers[1]) if len(powers) > 1 else peak_kw
-                peak_rate = active_contract.power_rate_peak_kw_day or DEFAULT_POWER_RATE_PEAK
-                valley_rate = active_contract.power_rate_valley_kw_day or DEFAULT_POWER_RATE_VALLEY
-                days_in_month = (month_end - month_start).days + 1
-                fixed_cost = round(
-                    (peak_kw * peak_rate + valley_kw * valley_rate) * days_in_month,
-                    2,
-                )
-            except (ValueError, IndexError, TypeError):
-                fixed_cost = None
-
-    estimated_bill_eur = round(variable_cost + (fixed_cost or 0.0), 2)
+    # ── Compute bill via tariff engine ────────────────────────────────────────
     days_remaining = (month_end - today).days
+    days_in_period = (month_end - month_start).days + 1
+
+    if active_contract and month_forecasts:
+        breakdown: BillBreakdown = compute_bill(
+            hourly_forecast=hourly_month_forecast,
+            contract=active_contract,
+            days_in_period=days_in_period,
+        )
+        projected_remaining_kwh = sum(f.predicted_kwh for f in month_forecasts)
+        total_projected_kwh = mtd_actual_kwh + projected_remaining_kwh
+
+        bill_estimate = BillEstimate(
+            mtd_actual_kwh=round(mtd_actual_kwh, 3),
+            projected_remaining_kwh=round(projected_remaining_kwh, 3),
+            total_projected_kwh=round(total_projected_kwh, 3),
+            projected_p1_kwh=breakdown.energy_p1_kwh,
+            projected_p2_kwh=breakdown.energy_p2_kwh,
+            energy_cost_eur=breakdown.energy_cost_eur,
+            power_cost_eur=breakdown.power_cost_eur,
+            cargos_eur=breakdown.cargos_eur,
+            meter_rent_eur=breakdown.meter_rent_eur,
+            iee_eur=breakdown.iee_eur,
+            iva_eur=breakdown.iva_eur,
+            estimated_bill_eur=breakdown.total_eur,
+            bill_low_eur=breakdown.total_low_eur,
+            bill_high_eur=breakdown.total_high_eur,
+            days_remaining=days_remaining,
+        )
+    else:
+        # No contract or no forecast yet — return zeros
+        projected_remaining_kwh = sum(f.predicted_kwh for f in month_forecasts)
+        bill_estimate = BillEstimate(
+            mtd_actual_kwh=round(mtd_actual_kwh, 3),
+            projected_remaining_kwh=round(projected_remaining_kwh, 3),
+            total_projected_kwh=round(mtd_actual_kwh + projected_remaining_kwh, 3),
+            projected_p1_kwh=0.0,
+            projected_p2_kwh=0.0,
+            energy_cost_eur=0.0,
+            power_cost_eur=0.0,
+            cargos_eur=0.0,
+            meter_rent_eur=0.0,
+            iee_eur=0.0,
+            iva_eur=0.0,
+            estimated_bill_eur=0.0,
+            bill_low_eur=0.0,
+            bill_high_eur=0.0,
+            days_remaining=days_remaining,
+        )
 
     last_run_at = max((f.run_at for f in daily_forecasts), default=None)
 
@@ -156,15 +191,6 @@ def get_forecast(
 
     return ForecastResponse(
         daily=daily,
-        bill_estimate=BillEstimate(
-            mtd_actual_kwh=round(mtd_actual_kwh, 3),
-            projected_remaining_kwh=round(projected_remaining_kwh, 3),
-            total_projected_kwh=round(total_projected_kwh, 3),
-            energy_rate_kwh=energy_rate,
-            variable_cost_eur=variable_cost,
-            fixed_cost_eur=fixed_cost,
-            estimated_bill_eur=estimated_bill_eur,
-            days_remaining=days_remaining,
-        ),
+        bill_estimate=bill_estimate,
         last_run_at=last_run_at,
     )
