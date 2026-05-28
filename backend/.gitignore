@@ -1,7 +1,10 @@
 /venv
-*pychache*
+*pycache*
 *.pyc
 *.pyo
 *.pyd
 __pycache__/
 *.log
+*.db
+.env
+.env*

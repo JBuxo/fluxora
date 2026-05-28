@@ -1,0 +1,43 @@
+# data files
+*.csv
+*.ipynb
+
+# Python
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# venv
+backend/venv/
+venv/
+
+# local DBs
+*.db
+*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node / frontend
+frontend/node_modules/
+frontend/.next/
+frontend/.turbo/
+
+# IDE
+.vscode/
+.idea/
+*.swp
