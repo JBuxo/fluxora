@@ -1,7 +1,7 @@
 FROM python:3.12-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ make \
+    gcc g++ make git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

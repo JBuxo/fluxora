@@ -10,9 +10,12 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { backendUrl } from "@/app/lib/backend";
+import { createClient } from "@/lib/supabase/server";
 
 async function hasOnboarded(): Promise<boolean> {
-  const token = process.env.NEXT_PUBLIC_DEV_TOKEN ?? "";
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
   if (!token) return false;
   try {
     const res = await fetch(backendUrl("/homes/with-contracts"), {
