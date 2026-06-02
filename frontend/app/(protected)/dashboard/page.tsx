@@ -11,9 +11,6 @@ import Loader from "@/components/ui/loader";
 import { useContract } from "@/hooks/use-contract";
 import { useConsumptionAnalytics } from "@/hooks/use-consumption-analytics";
 import { useForecast } from "@/hooks/use-forecast";
-import { addDays } from "date-fns";
-import React from "react";
-import { DateRange } from "react-day-picker";
 import { ConsumptionTrendLineChart } from "./_components/consumption-line-chart";
 import { CumulativeCostAreaChart } from "./_components/consumption-area-chart";
 import UsageHeatmap from "./_components/usage-heatmap";
@@ -32,12 +29,9 @@ export default function DashboardPage() {
   } = useConsumptionAnalytics(contractId);
   const { forecast, loading: forecastLoading } = useForecast(homeId);
   const { anomalies, loading: anomaliesLoading } = useAnomalies(homeId);
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(new Date().getFullYear(), 0, 20),
-    to: addDays(new Date(new Date().getFullYear(), 0, 20), 20),
-  });
 
-  const isLoading = loading || analyticsLoading || forecastLoading || anomaliesLoading;
+  const isLoading =
+    loading || analyticsLoading || forecastLoading || anomaliesLoading;
 
   if (isLoading || !contract) {
     return (
