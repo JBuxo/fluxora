@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -181,6 +182,38 @@ def update_tariff_rates(
 
     session.commit()
     return {"updated_contracts": updated}
+
+
+@router.get("/{home_id}/sync-status")
+def get_sync_status(
+    home_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(current_user),
+    session: Session = Depends(get_session),
+):
+    home = session.get(Home, home_id)
+    if not home or home.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Home not found")
+
+    supply_points = session.exec(
+        select(SupplyPoint).where(SupplyPoint.home_id == home_id, SupplyPoint.active == True)
+    ).all()
+
+    if not supply_points:
+        return {"needs_sync": False, "last_synced_at": None}
+
+    synced_times = [sp.last_synced_at for sp in supply_points if sp.last_synced_at]
+    if not synced_times:
+        return {"needs_sync": True, "last_synced_at": None}
+
+    latest = max(synced_times)
+    threshold = datetime.now(timezone.utc) - timedelta(hours=24)
+    # Make latest timezone-aware for comparison
+    latest_aware = latest if latest.tzinfo else latest.replace(tzinfo=timezone.utc)
+
+    return {
+        "needs_sync": latest_aware < threshold,
+        "last_synced_at": latest_aware.isoformat(),
+    }
 
 
 @router.get("/{home_id}/supply-points", response_model=List[SupplyPoint])
