@@ -128,6 +128,22 @@ export interface Report {
   suggestions: ReportSuggestion[];
 }
 
+export interface Recommendation {
+  id: string;
+  type: string;
+  title: string;
+  detail: string;
+  potential_saving_eur: number;
+  confidence: "high" | "medium" | "low";
+  supporting_data: Record<string, unknown>;
+}
+
+export interface RecommendationsResponse {
+  recommendations: Recommendation[];
+  total_potential_saving_eur: number;
+  generated_at: string;
+}
+
 export interface SavedReportMeta {
   id: string;
   generated_at: string;

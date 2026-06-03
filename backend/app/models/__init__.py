@@ -12,6 +12,7 @@ from .anomaly_record import AnomalyRecord
 from .weather_location import WeatherLocation
 from .weather_record import WeatherRecord
 from .saved_report import SavedReport
+from .recommendation_feedback import RecommendationFeedback
 
 __all__ = [
     "User",
@@ -28,4 +29,5 @@ __all__ = [
     "WeatherLocation",
     "WeatherRecord",
     "SavedReport",
+    "RecommendationFeedback",
 ]

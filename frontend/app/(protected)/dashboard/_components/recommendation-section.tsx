@@ -1,66 +1,19 @@
 "use client";
 
-import { Clock, Tag, Repeat2, ThumbsUp, X, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { Clock, Tag, Repeat2, ThumbsUp, X, ChevronRight, TrendingUp, AlertTriangle, CloudRain, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useRecommendations } from "@/hooks/use-recommendations";
+import type { Recommendation } from "@/lib/types/api";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type TipType = "timing" | "tariff" | "habit";
-type Saving = { amount: string; label: string };
-
-interface Tip {
-  id: string;
-  type: TipType;
-  headline: string;
-  detail: string;
-  saving: Saving;
-}
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-// All inferences are based solely on hourly consumption totals — no appliance-
-// level tracking. We can observe *when* usage is high or low, not what's causing it.
-
-const tips: Tip[] = [
-  {
-    id: "01",
-    type: "timing",
-    headline: "Most of your evening usage falls in the most expensive hours",
-    detail:
-      "Between 5pm and 9pm your consumption is consistently at its highest — and that window is when energy costs the most. Shifting even a portion of that usage to after 11pm, when rates drop by around 30%, could make a noticeable difference to your bill.",
-    saving: { amount: "~€14", label: "saved per month" },
-  },
-  {
-    id: "02",
-    type: "tariff",
-    headline: "A time-of-use tariff would suit how you already use energy",
-    detail:
-      "Your overnight and midday consumption is relatively low, and your usage naturally concentrates in specific windows. A time-of-use tariff rewards that kind of pattern — you'd pay less during the hours you're already quieter, without needing to change anything.",
-    saving: { amount: "~€22", label: "saved per month" },
-  },
-  {
-    id: "03",
-    type: "habit",
-    headline: "Your weekend consumption runs about 40% higher than weekdays",
-    detail:
-      "Every weekend, your hourly averages are noticeably higher than on weekdays — particularly in the afternoon. We can't tell what's driving it, but it's consistent enough to be worth being aware of if you're trying to bring the bill down.",
-    saving: { amount: "~€8", label: "saved per month" },
-  },
-];
-
-// ─── Config ───────────────────────────────────────────────────────────────────
+// ─── Type config ─────────────────────────────────────────────────────────────
 
 const typeConfig: Record<
-  TipType,
-  {
-    label: string;
-    icon: React.ElementType;
-    rail: string;
-    badge: string;
-    saving: string;
-  }
+  string,
+  { label: string; icon: React.ElementType; rail: string; badge: string; saving: string }
 > = {
   timing: {
     label: "Timing",
@@ -76,6 +29,34 @@ const typeConfig: Record<
     badge: "text-primary border-border bg-accent",
     saving: "text-primary",
   },
+  forecast: {
+    label: "Forecast",
+    icon: TrendingUp,
+    rail: "bg-primary",
+    badge: "text-primary border-border bg-accent",
+    saving: "text-primary",
+  },
+  anomaly: {
+    label: "Alert",
+    icon: AlertTriangle,
+    rail: "bg-destructive",
+    badge: "text-destructive border-border bg-accent",
+    saving: "text-destructive",
+  },
+  appliance: {
+    label: "Appliance",
+    icon: Zap,
+    rail: "bg-primary",
+    badge: "text-primary border-border bg-accent",
+    saving: "text-primary",
+  },
+  weather: {
+    label: "Weather",
+    icon: CloudRain,
+    rail: "bg-primary",
+    badge: "text-primary border-border bg-accent",
+    saving: "text-primary",
+  },
   habit: {
     label: "Habit",
     icon: Repeat2,
@@ -85,11 +66,27 @@ const typeConfig: Record<
   },
 };
 
-// ─── Row ──────────────────────────────────────────────────────────────────────
+const fallbackConfig = typeConfig.timing;
 
-function TipRow({ tip, isLast }: { tip: Tip; isLast: boolean }) {
-  const cfg = typeConfig[tip.type];
+// ─── Row ─────────────────────────────────────────────────────────────────────
+
+function RecommendationRow({
+  rec,
+  index,
+  isLast,
+  onFeedback,
+  dismissed,
+}: {
+  rec: Recommendation;
+  index: number;
+  isLast: boolean;
+  onFeedback: (action: string) => void;
+  dismissed: boolean;
+}) {
+  const cfg = typeConfig[rec.type] ?? fallbackConfig;
   const Icon = cfg.icon;
+
+  if (dismissed) return null;
 
   return (
     <>
@@ -106,34 +103,46 @@ function TipRow({ tip, isLast }: { tip: Tip; isLast: boolean }) {
 
         {/* Index */}
         <span className="w-8 shrink-0 select-none font-mono text-sm tabular-nums text-muted-foreground mt-0.5">
-          {tip.id}
+          {String(index + 1).padStart(2, "0")}
         </span>
 
         {/* Body */}
         <div className="min-w-0 flex-1 space-y-2">
-          <Badge variant="outline" className={cfg.badge}>
-            <Icon className="h-3 w-3" />
-            {cfg.label}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className={cfg.badge}>
+              <Icon className="h-3 w-3" />
+              {cfg.label}
+            </Badge>
+            {rec.confidence === "high" && (
+              <Badge variant="outline" className="text-xs text-muted-foreground border-border">
+                High confidence
+              </Badge>
+            )}
+          </div>
 
-          <p className="text-lg leading-snug text-foreground">{tip.headline}</p>
+          <p className="text-lg leading-snug text-foreground">{rec.title}</p>
 
           <p className="text-sm leading-relaxed text-muted-foreground max-w-prose">
-            {tip.detail}
+            {rec.detail}
           </p>
 
           <div>
-            <Button variant="ghost" className="gap-2 text-xs">
+            <Button
+              variant="ghost"
+              className="gap-2 text-xs"
+              onClick={() => onFeedback("already_doing")}
+            >
               <ThumbsUp className="h-3.5 w-3.5" />
               I&apos;m already doing this
             </Button>
-            <Button variant="ghost" className="gap-2 text-xs">
+            <Button variant="ghost" className="gap-2 text-xs" disabled>
               <ChevronRight className="h-3.5 w-3.5" />
               Show me the data
             </Button>
             <Button
               variant="ghost"
               className="gap-2 text-xs text-muted-foreground"
+              onClick={() => onFeedback("not_useful")}
             >
               <X className="h-3.5 w-3.5" />
               Not useful for me
@@ -146,17 +155,14 @@ function TipRow({ tip, isLast }: { tip: Tip; isLast: boolean }) {
           <p className="mb-1 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
             Potential saving
           </p>
-          <p
-            className={cn(
-              "font-mono text-xl font-bold tabular-nums leading-none",
-              cfg.saving,
-            )}
-          >
-            {tip.saving.amount}
+          <p className={cn("font-mono text-xl font-bold tabular-nums leading-none", cfg.saving)}>
+            {rec.potential_saving_eur > 0 ? `~€${Math.round(rec.potential_saving_eur)}` : "—"}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground leading-tight max-w-20 ml-auto">
-            {tip.saving.label}
-          </p>
+          {rec.potential_saving_eur > 0 && (
+            <p className="mt-1 text-xs text-muted-foreground leading-tight max-w-20 ml-auto">
+              saved per month
+            </p>
+          )}
         </div>
       </div>
 
@@ -165,20 +171,78 @@ function TipRow({ tip, isLast }: { tip: Tip; isLast: boolean }) {
   );
 }
 
-// ─── Section ──────────────────────────────────────────────────────────────────
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
-export function RecommendationEngine() {
-  const totalSaving = "~€44";
+function RecommendationSkeleton() {
+  return (
+    <div className="space-y-0">
+      {[1, 2, 3].map((i) => (
+        <div key={i}>
+          <div className="flex items-start gap-6 py-6 -mx-4 px-4">
+            <div className="w-8 h-4 bg-muted rounded animate-pulse" />
+            <div className="flex-1 space-y-3">
+              <div className="h-5 w-24 bg-muted rounded animate-pulse" />
+              <div className="h-5 w-3/4 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-full bg-muted rounded animate-pulse" />
+              <div className="h-4 w-2/3 bg-muted rounded animate-pulse" />
+            </div>
+            <div className="shrink-0 w-16 space-y-2">
+              <div className="h-3 w-full bg-muted rounded animate-pulse" />
+              <div className="h-6 w-full bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+          {i < 3 && <Separator />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Section ─────────────────────────────────────────────────────────────────
+
+export function RecommendationEngine({ homeId }: { homeId: string | null }) {
+  const { recommendations, totalSaving, loading, submitFeedback } = useRecommendations(homeId);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  const handleFeedback = (rec: Recommendation, action: string) => {
+    submitFeedback(rec.id, rec.type, action, rec.supporting_data);
+    if (action === "not_useful" || action === "dismissed") {
+      setDismissed((prev) => new Set([...prev, rec.id]));
+    }
+  };
+
+  const visible = recommendations.filter((r) => !dismissed.has(r.id));
+
+  if (loading) {
+    return <RecommendationSkeleton />;
+  }
+
+  if (!loading && visible.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-6">
+        No recommendations right now — consumption looks normal. Check back after the next forecast run.
+      </p>
+    );
+  }
 
   return (
     <section className="space-y-4">
-      <p className="text-xl tabular-nums leading-none text-foreground">
-        Potential Savings: {totalSaving}
-      </p>
+      {totalSaving > 0 && (
+        <p className="text-xl tabular-nums leading-none text-foreground">
+          Potential Savings: ~€{Math.round(totalSaving)}/month
+        </p>
+      )}
 
       <div className="relative">
-        {tips.map((tip, i) => (
-          <TipRow key={tip.id} tip={tip} isLast={i === tips.length - 1} />
+        {recommendations.map((rec, i) => (
+          <RecommendationRow
+            key={rec.id}
+            rec={rec}
+            index={i}
+            isLast={i === visible.length - 1}
+            onFeedback={(action) => handleFeedback(rec, action)}
+            dismissed={dismissed.has(rec.id)}
+          />
         ))}
       </div>
     </section>

@@ -228,7 +228,7 @@ export default function DashboardPage() {
         </p>
 
         <div className="mt-4 space-y-3">
-          <RecommendationEngine />
+          <RecommendationEngine homeId={homeId} />
         </div>
       </section>
     </div>
