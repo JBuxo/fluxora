@@ -1,3 +1,4 @@
+import logging
 import os
 import jwt
 from dotenv import load_dotenv
@@ -6,6 +7,8 @@ from fastapi import HTTPException, Header
 load_dotenv(".env.local")
 
 SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET")
+
+logger = logging.getLogger(__name__)
 
 
 def verify_token(authorization: str = Header(...)):
@@ -18,5 +21,6 @@ def verify_token(authorization: str = Header(...)):
             audience="authenticated",
         )
         return payload
-    except Exception:
+    except Exception as e:
+        logger.warning("verify_token failed secret_set=%s error=%s: %s", bool(SUPABASE_JWT_SECRET), type(e).__name__, e)
         raise HTTPException(status_code=401, detail="Invalid token")
