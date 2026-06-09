@@ -1,7 +1,10 @@
+import logging
 import uuid
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -59,6 +62,7 @@ def sync_all(
     user_id: uuid.UUID = Depends(current_user),
     session: Session = Depends(get_session),
 ):
+    logger.info("sync_all called user_id=%s", user_id)
     # Resolve credentials: body takes priority, else use stored
     nif = body.nif
     password = body.password
@@ -96,11 +100,15 @@ def sync_all(
     session.refresh(job)
 
     try:
+        logger.info("fetching supply data nif=%s date_from=%s date_to=%s", nif, date_from, date_to)
         try:
             supplies = fetch_all_supply_data(nif, password, date_from, date_to)
+            logger.info("fetch_all_supply_data returned %d supplies", len(supplies))
         except ValueError as e:
+            logger.warning("fetch_all_supply_data ValueError: %s", e)
             raise HTTPException(status_code=404, detail=str(e))
         except Exception as e:
+            logger.exception("fetch_all_supply_data unexpected error")
             raise HTTPException(status_code=502, detail=f"Datadis sync error: {e}")
 
         total_inserted = 0
@@ -263,6 +271,7 @@ def sync_all(
         session.commit()
         raise
     except Exception as e:
+        logger.exception("sync_all unhandled exception user_id=%s", user_id)
         job.status = SyncStatus.failed
         job.error_message = str(e)
         job.finished_at = now
