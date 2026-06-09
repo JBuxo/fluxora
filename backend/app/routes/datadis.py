@@ -38,21 +38,43 @@ def _parse_datadis_date(value: str | None) -> date | None:
         return None
 
 
-def _background_weather_and_forecast(home_ids: list[uuid.UUID]) -> None:
+_FORECAST_MAX_RETRIES = 3
+_FORECAST_BACKOFF_BASE = 5  # seconds
+
+
+def _run_forecast_for_home(home_id: uuid.UUID) -> None:
+    import time
     from app.db.database import engine
-    with Session(engine) as s:
-        for home_id in home_ids:
-            home = s.get(Home, home_id)
-            if not home:
-                continue
-            if not home.weather_location_id:
-                loc = assign_weather_location(home_id, s)
-                s.commit()
-                if loc:
-                    sync_weather(loc.id, s)
-            else:
-                sync_weather(home.weather_location_id, s)
-            run_forecast(home_id, s)
+    for attempt in range(1, _FORECAST_MAX_RETRIES + 1):
+        try:
+            with Session(engine) as s:
+                home = s.get(Home, home_id)
+                if not home:
+                    logger.warning("background forecast: home %s not found", home_id)
+                    return
+                if not home.weather_location_id:
+                    loc = assign_weather_location(home_id, s)
+                    s.commit()
+                    if loc:
+                        sync_weather(loc.id, s)
+                else:
+                    sync_weather(home.weather_location_id, s)
+                n = run_forecast(home_id, s)
+                logger.info("background forecast done home_id=%s records=%s attempt=%s", home_id, n, attempt)
+                return
+        except Exception:
+            logger.exception("background forecast failed home_id=%s attempt=%s/%s", home_id, attempt, _FORECAST_MAX_RETRIES)
+            if attempt < _FORECAST_MAX_RETRIES:
+                delay = _FORECAST_BACKOFF_BASE * (2 ** (attempt - 1))
+                logger.info("background forecast retrying home_id=%s in %ss", home_id, delay)
+                time.sleep(delay)
+    logger.error("background forecast gave up home_id=%s after %s attempts", home_id, _FORECAST_MAX_RETRIES)
+
+
+def _background_weather_and_forecast(home_ids: list[uuid.UUID]) -> None:
+    logger.info("background forecast starting home_ids=%s", home_ids)
+    for home_id in home_ids:
+        _run_forecast_for_home(home_id)
 
 
 @router.post("/sync")
