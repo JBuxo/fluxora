@@ -42,7 +42,13 @@ def _load_key():
 _load_key()
 
 
+_DEV_USER_ID = os.environ.get("DEV_USER_ID")
+_DEVELOPMENT = os.environ.get("DEVELOPMENT", "").lower() == "true"
+
+
 def verify_token(authorization: str = Header(...)):
+    if _DEVELOPMENT and _DEV_USER_ID:
+        return {"sub": _DEV_USER_ID, "role": "authenticated"}
     try:
         token = authorization.split(" ")[1]
         payload = jwt.decode(

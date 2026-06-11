@@ -36,28 +36,30 @@ export default async function ProtectedRootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const isOnboarded = await hasOnboarded();
-  if (!isOnboarded) redirect("/setup");
+  if (process.env.NEXT_PUBLIC_DEV_MODE !== "true") {
+    const isOnboarded = await hasOnboarded();
+    if (!isOnboarded) redirect("/setup");
+  }
 
   return (
     <SidebarProvider>
       <ClientShell>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="fixed flex h-16 shrink-0 items-center bg-background w-full gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 ">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-vertical:h-4 data-vertical:self-auto"
-            />
-            <HeaderBreadcrumb />
+        <AppSidebar />
+        <SidebarInset>
+          <header className="fixed flex h-16 shrink-0 items-center bg-background w-full gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 ">
+            <div className="flex items-center gap-2 px-4">
+              <SidebarTrigger className="-ml-1" />
+              <Separator
+                orientation="vertical"
+                className="mr-2 data-vertical:h-4 data-vertical:self-auto"
+              />
+              <HeaderBreadcrumb />
+            </div>
+          </header>
+          <div className="flex flex-1 flex-col gap-4 p-4 pb-16 pt-0 mt-16 max-w-5xl mx-auto w-full">
+            {children}
           </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pb-16 pt-0 mt-16 max-w-5xl mx-auto w-full">
-          {children}
-        </div>
-      </SidebarInset>
+        </SidebarInset>
       </ClientShell>
     </SidebarProvider>
   );

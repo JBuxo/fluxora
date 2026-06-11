@@ -196,40 +196,79 @@ def _rule_forecast_spike(
     direction = "up" if delta_pct > 0 else "down"
 
     if direction == "up":
+        excess_kwh = round(forecast_total - actual_last_30, 1)
         return Recommendation(
             id="forecast_spike",
             type="forecast",
-            title=f"Consumption forecast is {round(delta_pct * 100)}% higher than last month",
+            title=f"Act now to avoid a {round(delta_pct * 100)}% higher bill next month",
             detail=(
-                f"Your model predicts {forecast_total:.0f} kWh over the next 30 days vs "
-                f"{actual_last_30:.0f} kWh last month. That's ~€{abs(cost_delta):.0f} more on your bill. "
-                f"Check for new high-draw appliances or heating/cooling changes."
+                f"The model forecasts {forecast_total:.0f} kWh over the next 30 days — "
+                f"{excess_kwh} kWh more than last month (~€{abs(cost_delta):.0f} extra). "
+                f"Shift flexible loads (laundry, dishwasher, EV) to off-peak hours, "
+                f"check for any new high-draw appliances left on standby, and review "
+                f"heating or cooling schedules to contain the increase."
             ),
             potential_saving_eur=round(abs(cost_delta), 2),
             confidence="medium",
             supporting_data={
                 "forecast_kwh_30d": round(forecast_total, 1),
                 "actual_kwh_30d": round(actual_last_30, 1),
+                "excess_kwh": excess_kwh,
                 "delta_pct": round(delta_pct, 3),
+                "cost_increase_eur": round(abs(cost_delta), 2),
             },
         )
     else:
-        return Recommendation(
-            id="forecast_down",
-            type="forecast",
-            title=f"Consumption on track to drop {round(abs(delta_pct) * 100)}% vs last month",
-            detail=(
-                f"Good trend — model predicts {forecast_total:.0f} kWh vs {actual_last_30:.0f} kWh last month. "
-                f"That's ~€{abs(cost_delta):.0f} in savings if it holds."
-            ),
-            potential_saving_eur=0.0,
-            confidence="medium",
-            supporting_data={
-                "forecast_kwh_30d": round(forecast_total, 1),
-                "actual_kwh_30d": round(actual_last_30, 1),
-                "delta_pct": round(delta_pct, 3),
-            },
-        )
+        # Sustained drop — check if contracted power can be reduced
+        power_kw = contract.power_kw if contract else None
+        peak_rate = contract.power_rate_peak_kw_day if contract else None
+        valley_rate = contract.power_rate_valley_kw_day if contract else None
+
+        has_power_rates = power_kw and peak_rate and valley_rate
+        reduction_kw = round(power_kw * abs(delta_pct) * 0.5, 2) if has_power_rates else None
+        power_saving = round(reduction_kw * (peak_rate + valley_rate) * 30, 2) if (has_power_rates and reduction_kw) else 0.0
+
+        if has_power_rates and power_saving > 3.0:
+            return Recommendation(
+                id="forecast_down",
+                type="forecast",
+                title=f"Consumption dropping {round(abs(delta_pct) * 100)}% — consider reducing contracted power",
+                detail=(
+                    f"Your model predicts {forecast_total:.0f} kWh vs {actual_last_30:.0f} kWh last month. "
+                    f"If this lower pattern holds, your current contracted power of {power_kw:.1f} kW may be oversized. "
+                    f"Reducing by ~{reduction_kw} kW could save ~€{power_saving:.0f}/month on your fixed power charge."
+                ),
+                potential_saving_eur=power_saving,
+                confidence="low",
+                supporting_data={
+                    "forecast_kwh_30d": round(forecast_total, 1),
+                    "actual_kwh_30d": round(actual_last_30, 1),
+                    "delta_pct": round(delta_pct, 3),
+                    "current_contracted_kw": power_kw,
+                    "suggested_reduction_kw": reduction_kw,
+                    "power_rate_peak_kw_day": peak_rate,
+                    "power_rate_valley_kw_day": valley_rate,
+                },
+            )
+        else:
+            return Recommendation(
+                id="forecast_down",
+                type="forecast",
+                title=f"Consumption dropping {round(abs(delta_pct) * 100)}% — lock in this pattern",
+                detail=(
+                    f"Your model predicts {forecast_total:.0f} kWh vs {actual_last_30:.0f} kWh last month. "
+                    f"If this is a new sustained pattern rather than a seasonal dip, review whether your "
+                    f"contracted power is still correctly sized — an oversized contract means you're paying "
+                    f"fixed charges for capacity you no longer use."
+                ),
+                potential_saving_eur=0.0,
+                confidence="low",
+                supporting_data={
+                    "forecast_kwh_30d": round(forecast_total, 1),
+                    "actual_kwh_30d": round(actual_last_30, 1),
+                    "delta_pct": round(delta_pct, 3),
+                },
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -358,52 +397,6 @@ def _rule_appliance_offpeak(
             "estimated_shiftable_kwh_month": round(total_shiftable_kwh, 1),
             "p1_rate_eur_kwh": p1_rate,
             "p2_rate_eur_kwh": p2_rate,
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Rule: bill on track
-# ---------------------------------------------------------------------------
-
-def _rule_bill_on_track(
-    forecast_rows: list[ForecastRecord],
-    actual_last_30: float,
-    contract: Optional[Contract],
-) -> Optional[Recommendation]:
-    if not forecast_rows:
-        return None
-
-    today = date.today()
-    days_in_month = 30
-    days_elapsed = min(today.day, days_in_month)
-    days_remaining = days_in_month - days_elapsed
-
-    if days_remaining <= 0:
-        return None
-
-    remaining_forecast = sum(r.predicted_kwh for r in forecast_rows[:days_remaining])
-    rate = (contract.energy_rate_p1_kwh or contract.energy_rate_kwh or 0.15) if contract else 0.15
-
-    mtd_cost = actual_last_30 / days_in_month * days_elapsed * rate  # rough MTD cost
-    projected_remaining_cost = remaining_forecast * rate
-    projected_total = mtd_cost + projected_remaining_cost
-
-    return Recommendation(
-        id="bill_on_track",
-        type="forecast",
-        title=f"Projected bill this month: ~€{projected_total:.0f}",
-        detail=(
-            f"{days_remaining} days remaining. Forecast: {remaining_forecast:.0f} kWh to go. "
-            f"Estimated remaining energy cost: €{projected_remaining_cost:.0f}. "
-            f"Total projected: ~€{projected_total:.0f}."
-        ),
-        potential_saving_eur=0.0,
-        confidence="medium",
-        supporting_data={
-            "days_remaining": days_remaining,
-            "remaining_forecast_kwh": round(remaining_forecast, 1),
-            "projected_total_eur": round(projected_total, 2),
         },
     )
 
@@ -543,7 +536,6 @@ def generate_recommendations(
         (_rule_anomaly_alert, (anomalies,)),
         (_rule_tariff_savings, (hourly, contract)),
         (_rule_appliance_offpeak, (profile, hourly, contract)),
-        (_rule_bill_on_track, (forecast_rows, actual_last_30, contract)),
         (_rule_weather_trend, (session, hourly, weather_location_id)),
     ]:
         rec = rule_fn(*args)

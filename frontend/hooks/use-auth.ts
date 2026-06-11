@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true";
+
 export function useAuth() {
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState(DEV_MODE ? "dev" : "");
 
   useEffect(() => {
+    if (DEV_MODE) return;
     const supabase = createClient();
 
     supabase.auth.getSession().then(({ data: { session } }) => {
