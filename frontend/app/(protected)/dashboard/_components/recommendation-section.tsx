@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Clock, Tag, Repeat2, ThumbsUp, X, ChevronRight, TrendingUp, AlertTriangle, CloudRain, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,15 +77,18 @@ function RecommendationRow({
   isLast,
   onFeedback,
   dismissed,
+  homeId,
 }: {
   rec: Recommendation;
   index: number;
   isLast: boolean;
   onFeedback: (action: string) => void;
   dismissed: boolean;
+  homeId: string | null;
 }) {
   const cfg = typeConfig[rec.type] ?? fallbackConfig;
   const Icon = cfg.icon;
+  const router = useRouter();
 
   if (dismissed) return null;
 
@@ -135,7 +139,15 @@ function RecommendationRow({
               <ThumbsUp className="h-3.5 w-3.5" />
               I&apos;m already doing this
             </Button>
-            <Button variant="ghost" className="gap-2 text-xs" disabled>
+            <Button
+              variant="ghost"
+              className="gap-2 text-xs"
+              onClick={() =>
+                router.push(
+                  `/suggestion/${rec.id}${homeId ? `?homeId=${homeId}` : ""}`
+                )
+              }
+            >
               <ChevronRight className="h-3.5 w-3.5" />
               Show me the data
             </Button>
@@ -242,6 +254,7 @@ export function RecommendationEngine({ homeId }: { homeId: string | null }) {
             isLast={i === visible.length - 1}
             onFeedback={(action) => handleFeedback(rec, action)}
             dismissed={dismissed.has(rec.id)}
+            homeId={homeId}
           />
         ))}
       </div>
