@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Clock, Tag, Repeat2, ThumbsUp, X, ChevronRight, TrendingUp, AlertTriangle, CloudRain, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,7 @@ function RecommendationRow({
   const cfg = typeConfig[rec.type] ?? fallbackConfig;
   const Icon = cfg.icon;
   const router = useRouter();
+  const t = useTranslations("recommendations");
 
   if (dismissed) return null;
 
@@ -115,11 +117,11 @@ function RecommendationRow({
           <div className="flex items-center gap-2">
             <Badge variant="outline" className={cfg.badge}>
               <Icon className="h-3 w-3" />
-              {cfg.label}
+              {t(rec.type as Parameters<typeof t>[0]) ?? cfg.label}
             </Badge>
             {rec.confidence === "high" && (
               <Badge variant="outline" className="text-xs text-muted-foreground border-border">
-                High confidence
+                {t("highConfidence")}
               </Badge>
             )}
           </div>
@@ -137,7 +139,7 @@ function RecommendationRow({
               onClick={() => onFeedback("already_doing")}
             >
               <ThumbsUp className="h-3.5 w-3.5" />
-              I&apos;m already doing this
+              {t("alreadyDoing")}
             </Button>
             <Button
               variant="ghost"
@@ -149,7 +151,7 @@ function RecommendationRow({
               }
             >
               <ChevronRight className="h-3.5 w-3.5" />
-              Show me the data
+              {t("showData")}
             </Button>
             <Button
               variant="ghost"
@@ -157,7 +159,7 @@ function RecommendationRow({
               onClick={() => onFeedback("not_useful")}
             >
               <X className="h-3.5 w-3.5" />
-              Not useful for me
+              {t("notUseful")}
             </Button>
           </div>
         </div>
@@ -165,14 +167,14 @@ function RecommendationRow({
         {/* Potential saving */}
         <div className="shrink-0 text-right">
           <p className="mb-1 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-            Potential saving
+            {t("potentialSaving")}
           </p>
           <p className={cn("font-mono text-xl font-bold tabular-nums leading-none", cfg.saving)}>
             {rec.potential_saving_eur > 0 ? `~€${Math.round(rec.potential_saving_eur)}` : "—"}
           </p>
           {rec.potential_saving_eur > 0 && (
             <p className="mt-1 text-xs text-muted-foreground leading-tight max-w-20 ml-auto">
-              saved per month
+              {t("savedPerMonth")}
             </p>
           )}
         </div>
@@ -213,6 +215,7 @@ function RecommendationSkeleton() {
 // ─── Section ─────────────────────────────────────────────────────────────────
 
 export function RecommendationEngine({ homeId }: { homeId: string | null }) {
+  const t = useTranslations("recommendations");
   const { recommendations, totalSaving, loading, submitFeedback } = useRecommendations(homeId);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
@@ -225,14 +228,12 @@ export function RecommendationEngine({ homeId }: { homeId: string | null }) {
 
   const visible = recommendations.filter((r) => !dismissed.has(r.id));
 
-  if (loading) {
-    return <RecommendationSkeleton />;
-  }
+  if (loading) return <RecommendationSkeleton />;
 
   if (!loading && visible.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-6">
-        No recommendations right now — consumption looks normal. Check back after the next forecast run.
+        {t("noRecommendations")}
       </p>
     );
   }
@@ -241,7 +242,7 @@ export function RecommendationEngine({ homeId }: { homeId: string | null }) {
     <section className="space-y-4">
       {totalSaving > 0 && (
         <p className="text-xl tabular-nums leading-none text-foreground">
-          Potential Savings: ~€{Math.round(totalSaving)}/month
+          {t("potentialSavings", { amount: Math.round(totalSaving) })}
         </p>
       )}
 

@@ -32,6 +32,7 @@ import {
 import { ChevronsUpDownIcon, LoaderCircleIcon, LogOutIcon, RefreshCwIcon, SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
+import { useTranslations } from "next-intl";
 
 interface NewHome {
   id: string;
@@ -44,6 +45,7 @@ export function NavUser({
 }: {
   user: { name: string; email: string; avatar: string };
 }) {
+  const t = useTranslations("user");
   const { isMobile } = useSidebar();
   const { authHeader } = useAuth();
   const router = useRouter();
@@ -102,9 +104,9 @@ export function NavUser({
     <Dialog open={newHomes.length > 0} onOpenChange={(open) => { if (!open) setNewHomes([]); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New {newHomes.length === 1 ? "home" : "homes"} found</DialogTitle>
+          <DialogTitle>{t("newHomesTitle", { count: newHomes.length })}</DialogTitle>
           <DialogDescription>
-            Give {newHomes.length === 1 ? "it" : "them"} a friendly name so you can identify {newHomes.length === 1 ? "it" : "them"} in the app.
+            {t("newHomesDescription", { count: newHomes.length })}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -122,9 +124,9 @@ export function NavUser({
           ))}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setNewHomes([])}>Skip</Button>
+          <Button variant="outline" onClick={() => setNewHomes([])}>{t("skip")}</Button>
           <Button onClick={saveNewHomes} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("saving") : t("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -175,7 +177,7 @@ export function NavUser({
               <DropdownMenuItem asChild>
                 <Link href="/settings">
                   <SettingsIcon />
-                  Settings
+                  {t("settings")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSync} disabled={syncing}>
@@ -184,13 +186,13 @@ export function NavUser({
                 ) : (
                   <RefreshCwIcon />
                 )}
-                {syncing ? "Syncing…" : "Sync Datadis"}
+                {syncing ? t("syncing") : t("syncDatadis")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
               <LogOutIcon />
-              Log out
+              {t("logout")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

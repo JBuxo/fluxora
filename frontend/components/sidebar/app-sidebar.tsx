@@ -6,6 +6,7 @@ import { NavMain } from "@/components/sidebar/nav-main";
 import { NavReports } from "@/components/sidebar/nav-reports";
 import { NavUser } from "@/components/sidebar/nav-user";
 import { ContractSwitcher } from "@/components/sidebar/contract-switcher";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -16,17 +17,18 @@ import {
 import { TerminalSquareIcon, BookOpenIcon, ChartColumnBigIcon } from "lucide-react";
 import { withContractParam } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useContracts } from "@/hooks/use-contracts";
 import { useSavedReports } from "@/hooks/use-saved-reports";
 import { useAuth } from "@/hooks/use-auth";
 import { format } from "date-fns";
 import type { ConsumptionReport } from "@/lib/types/ui";
 
-const NAV_ITEMS = [
-  { title: "Dashboard", url: "/dashboard", icon: <TerminalSquareIcon /> },
-  { title: "Analytics", url: "/analytics", icon: <BookOpenIcon /> },
-  { title: "Reports", url: "/reports", icon: <ChartColumnBigIcon /> },
-];
+const NAV_BASE = [
+  { key: "dashboard", url: "/dashboard", icon: <TerminalSquareIcon /> },
+  { key: "analytics", url: "/analytics", icon: <BookOpenIcon /> },
+  { key: "reports", url: "/reports", icon: <ChartColumnBigIcon /> },
+] as const;
 
 const USER = {
   name: "Jose Buxo",
@@ -35,6 +37,7 @@ const USER = {
 };
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+  const t = useTranslations("nav");
   const searchParams = useSearchParams();
   const contractId = searchParams.get("c");
   const { contracts, loading } = useContracts();
@@ -59,8 +62,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     refreshReports();
   }
 
-  const navItems = NAV_ITEMS.map((item) => ({
-    ...item,
+  const navItems = NAV_BASE.map((item) => ({
+    title: t(item.key),
+    icon: item.icon,
     url: contractId ? withContractParam(item.url, contractId) : item.url,
   }));
 
@@ -82,6 +86,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       <SidebarFooter>
+        <div className="px-2 pb-1">
+          <LocaleSwitcher />
+        </div>
         <NavUser user={USER} />
       </SidebarFooter>
 

@@ -14,8 +14,10 @@ import type { Report } from "@/lib/types/api";
 import { format } from "date-fns";
 import Link from "next/link";
 import { withContractParam } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export default function ReportDetailPage() {
+  const t = useTranslations("reports");
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const contractId = searchParams.get("c");
@@ -44,11 +46,11 @@ export default function ReportDetailPage() {
         const to = format(new Date(data.period.to), "d MMM yy");
         setLabel(id, `${from} – ${to}`);
       })
-      .catch(() => setError("Report not found"))
+      .catch(() => setError(t("notFound")))
       .finally(() => setLoading(false));
 
     return () => clearLabel(id);
-  }, [contractId, authHeader, id, setLabel, clearLabel]);
+  }, [contractId, authHeader, id, setLabel, clearLabel, t]);
 
   if (contractLoading || loading) {
     return (
@@ -62,9 +64,9 @@ export default function ReportDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center text-muted-foreground gap-3">
         <FileTextIcon className="h-10 w-10 opacity-30" />
-        <p className="text-sm">{error ?? "Report not found"}</p>
+        <p className="text-sm">{error ?? t("notFound")}</p>
         <Button variant="outline" asChild>
-          <Link href={allReportsUrl}>Back to Reports</Link>
+          <Link href={allReportsUrl}>{t("backToReports")}</Link>
         </Button>
       </div>
     );
@@ -73,18 +75,18 @@ export default function ReportDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Report</h1>
+        <h1 className="text-3xl font-bold">{t("report")}</h1>
         <Button variant="outline" size="sm" asChild>
           <Link href={allReportsUrl}>
             <ListIcon className="h-4 w-4" />
-            All Reports
+            {t("allReports")}
           </Link>
         </Button>
       </div>
       <Card>
         <CardHeader className="flex-row items-center gap-3">
           <FileTextIcon className="h-5 w-5 text-muted-foreground" />
-          <CardTitle className="text-base">Saved Report</CardTitle>
+          <CardTitle className="text-base">{t("savedReport")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ReportView report={report} contractName={contract?.name ?? ""} />
