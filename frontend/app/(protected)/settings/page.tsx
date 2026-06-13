@@ -10,6 +10,7 @@ import Loader from "@/components/ui/loader";
 import { useAuth } from "@/hooks/use-auth";
 import type { HomeWithContracts } from "@/lib/types/api";
 import { HomeIcon, ZapIcon, CheckIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface HomeState {
   id: string;
@@ -24,6 +25,7 @@ interface HomeState {
 }
 
 export default function SettingsPage() {
+  const t = useTranslations("settings");
   const { authHeader } = useAuth();
   const [homes, setHomes] = useState<HomeState[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,8 +103,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your homes and tariff details.</p>
+        <h1 className="text-3xl font-bold">{t("title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("description")}</p>
       </div>
 
       {homes.map((h) => (
@@ -112,17 +114,17 @@ export default function SettingsPage() {
               <HomeIcon className="h-4 w-4" />
               {h.name}
             </CardTitle>
-            <CardDescription>{h.address || "No address set"}</CardDescription>
+            <CardDescription>{h.address || t("noAddress")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Home details */}
             <section className="space-y-3">
               <h3 className="text-sm font-medium flex items-center gap-1.5">
-                <HomeIcon className="h-3.5 w-3.5" /> Home Details
+                <HomeIcon className="h-3.5 w-3.5" /> {t("homeDetails")}
               </h3>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor={`name-${h.id}`}>Name</Label>
+                  <Label htmlFor={`name-${h.id}`}>{t("name")}</Label>
                   <Input
                     id={`name-${h.id}`}
                     value={h.name}
@@ -130,7 +132,7 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor={`addr-${h.id}`}>Address</Label>
+                  <Label htmlFor={`addr-${h.id}`}>{t("address")}</Label>
                   <Input
                     id={`addr-${h.id}`}
                     value={h.address}
@@ -146,15 +148,15 @@ export default function SettingsPage() {
             <section className="space-y-3">
               <div>
                 <h3 className="text-sm font-medium flex items-center gap-1.5">
-                  <ZapIcon className="h-3.5 w-3.5" /> Tariff Rates
+                  <ZapIcon className="h-3.5 w-3.5" /> {t("tariffRates")}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Leave blank to keep current values. Power rates default to CNMC 2.0TD regulated rates.
+                  {t("tariffHint")}
                 </p>
               </div>
               <div className="grid sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor={`rate-${h.id}`}>Energy rate (€/kWh)</Label>
+                  <Label htmlFor={`rate-${h.id}`}>{t("energyRate")}</Label>
                   <Input
                     id={`rate-${h.id}`}
                     type="number"
@@ -166,7 +168,7 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor={`peak-${h.id}`}>P1 power rate (€/kW/day)</Label>
+                  <Label htmlFor={`peak-${h.id}`}>{t("p1PowerRate")}</Label>
                   <Input
                     id={`peak-${h.id}`}
                     type="number"
@@ -178,7 +180,7 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor={`valley-${h.id}`}>P2 power rate (€/kW/day)</Label>
+                  <Label htmlFor={`valley-${h.id}`}>{t("p2PowerRate")}</Label>
                   <Input
                     id={`valley-${h.id}`}
                     type="number"
@@ -195,11 +197,11 @@ export default function SettingsPage() {
             <div className="flex justify-end">
               <Button onClick={() => saveHome(h)} disabled={h.saving}>
                 {h.saving ? (
-                  "Saving…"
+                  t("saving")
                 ) : h.saved ? (
-                  <><CheckIcon className="h-4 w-4" /> Saved</>
+                  <><CheckIcon className="h-4 w-4" /> {t("saved")}</>
                 ) : (
-                  "Save Changes"
+                  t("saveChanges")
                 )}
               </Button>
             </div>
@@ -210,7 +212,7 @@ export default function SettingsPage() {
       {homes.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
           <HomeIcon className="h-10 w-10 opacity-25" />
-          <p className="text-sm">No homes found. Run a sync first.</p>
+          <p className="text-sm">{t("noHomes")}</p>
         </div>
       )}
     </div>

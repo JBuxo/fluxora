@@ -17,8 +17,10 @@ import { useReport } from "@/hooks/use-report";
 import { subDays } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { withContractParam } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export default function CreateReportPage() {
+  const t = useTranslations("reports");
   const { contract, contractId, loading } = useContract();
   const { loading: reportLoading, error, generate } = useReport(contractId);
   const router = useRouter();
@@ -52,16 +54,15 @@ export default function CreateReportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">New Report</h1>
+        <h1 className="text-3xl font-bold">{t("newReport")}</h1>
         <p className="text-muted-foreground mt-1">{contract.name}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Select Period</CardTitle>
+          <CardTitle>{t("selectPeriod")}</CardTitle>
           <CardDescription className="max-w-md">
-            Choose a date range to analyse. The report will include consumption
-            patterns, time-of-use breakdown, and actionable recommendations.
+            {t("selectPeriodDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
@@ -70,7 +71,7 @@ export default function CreateReportPage() {
             onClick={handleGenerate}
             disabled={reportLoading || !date?.from || !date?.to}
           >
-            {reportLoading ? "Generating…" : "Generate"}
+            {reportLoading ? t("generating") : t("generate")}
           </Button>
         </CardContent>
       </Card>

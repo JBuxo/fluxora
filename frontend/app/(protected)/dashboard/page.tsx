@@ -18,8 +18,10 @@ import { AnomalyScatterChart } from "./_components/anomaly-scatter-chart";
 import { ConfidenceBandChart } from "./_components/confidence-band-chart";
 import { RecommendationEngine } from "./_components/recommendation-section";
 import { useAnomalies } from "@/hooks/use-anomalies";
+import { useTranslations } from "next-intl";
 
 export default function DashboardPage() {
+  const t = useTranslations();
   const { contract, contractId, homeId, loading } = useContract();
   const {
     summary,
@@ -41,60 +43,52 @@ export default function DashboardPage() {
     );
   }
 
-  // Use for debugging not found contracts
-  // const contractFound = false;
-  // if (!contractFound) {
-  //   notFound();
-  // }
-
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">{contract.name}</h1>
 
-      {/* 1. HISTORICAL KPI OVERVIEW (PRIMARY SNAPSHOT) */}
+      {/* 1. HISTORICAL KPI OVERVIEW */}
       <section>
-        <h2 className="text-2xl">Overview</h2>
-
+        <h2 className="text-2xl">{t("dashboard.overview")}</h2>
         <p className="text-muted-foreground max-w-lg text-pretty">
-          High-level snapshot of historical consumption and cost based on
-          uploaded distributor reports.
+          {t("dashboard.overviewDescription")}
         </p>
 
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             {
-              title: "This Month",
-              description: "Consumption to date",
+              title: t("kpi.thisMonth"),
+              description: t("kpi.thisMonthDescription"),
               value: summary ? `${summary.mtd_kwh.toFixed(0)} kWh` : "—",
               hint: analyticsLoading
-                ? "Loading…"
+                ? t("kpi.loading")
                 : summary
                   ? `${summary.avg_daily_kwh.toFixed(1)} kWh/day avg`
-                  : "No data",
+                  : t("common.noData"),
             },
             {
-              title: "vs Last Month",
-              description: "Same days comparison",
+              title: t("kpi.vsLastMonth"),
+              description: t("kpi.vsLastMonthDescription"),
               value: summary
                 ? `${summary.vs_last_month_pct >= 0 ? "+" : ""}${summary.vs_last_month_pct.toFixed(1)}%`
                 : "—",
-              hint: "Same days of last month",
+              hint: t("kpi.sameLastMonth"),
             },
             {
-              title: "Spent So Far",
-              description: "Variable cost this month",
+              title: t("kpi.spentSoFar"),
+              description: t("kpi.spentSoFarDescription"),
               value: summary ? `€${summary.mtd_cost.toFixed(2)}` : "—",
-              hint: "Based on contract rate",
+              hint: t("kpi.basedOnRate"),
             },
             {
-              title: "Projected Bill",
-              description: "End of month estimate",
+              title: t("kpi.projectedBill"),
+              description: t("kpi.projectedBillDescription"),
               value: forecast
                 ? `€${forecast.bill_estimate.bill_low_eur.toFixed(0)} – €${forecast.bill_estimate.bill_high_eur.toFixed(0)}`
                 : "—",
               hint: forecast
                 ? `~€${forecast.bill_estimate.estimated_bill_eur.toFixed(2)} · ${forecast.bill_estimate.total_projected_kwh.toFixed(0)} kWh · ${forecast.bill_estimate.days_remaining}d left`
-                : "Forecast pending",
+                : t("kpi.forecastPending"),
             },
           ].map((kpi) => (
             <Card key={kpi.title}>
@@ -102,7 +96,6 @@ export default function DashboardPage() {
                 <CardTitle>{kpi.title}</CardTitle>
                 <CardDescription>{kpi.description}</CardDescription>
               </CardHeader>
-
               <CardContent>
                 <div className="text-3xl font-semibold">{kpi.value}</div>
                 <p className="text-xs text-muted-foreground mt-1">{kpi.hint}</p>
@@ -112,46 +105,34 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* 2. HISTORICAL CONSUMPTION TRENDS (CORE VALUE DRIVER) */}
+      {/* 2. HISTORICAL CONSUMPTION TRENDS */}
       <section>
-        <h2 className="text-2xl">Trends</h2>
-
+        <h2 className="text-2xl">{t("dashboard.trends")}</h2>
         <p className="text-muted-foreground max-w-lg text-pretty">
-          Long-term consumption patterns derived from uploaded historical
-          reports.
+          {t("dashboard.trendsDescription")}
         </p>
-
         <div className="mt-4 grid lg:grid-cols-2 gap-4">
           <ConsumptionTrendLineChart data={monthly} />
           <CumulativeCostAreaChart data={monthly} />
         </div>
       </section>
 
-      {/* =========================
-  3. USAGE BEHAVIOR PATTERNS (DERIVED INSIGHTS)
-  ========================= */}
+      {/* 3. USAGE BEHAVIOR PATTERNS */}
       <section>
-        <h2 className="text-2xl">Usage Patterns</h2>
-
+        <h2 className="text-2xl">{t("dashboard.usagePatterns")}</h2>
         <p className="text-muted-foreground max-w-lg text-pretty">
-          Derived behavioral insights from historical consumption data (not
-          real-time monitoring).
+          {t("dashboard.usagePatternsDescription")}
         </p>
-
         <div className="mt-4">
           <UsageHeatmap data={heatmap} />
         </div>
       </section>
 
-      {/* =========================
-  4. ANOMALY DETECTION (HISTORICAL SPIKE ANALYSIS)
-  ========================= */}
+      {/* 4. ANOMALY DETECTION */}
       <section>
-        <h2 className="text-2xl">Anomalies</h2>
-
+        <h2 className="text-2xl">{t("dashboard.anomalies")}</h2>
         <p className="text-muted-foreground max-w-lg text-pretty">
-          Detection of unusual consumption behavior compared to historical
-          baselines.
+          {t("dashboard.anomaliesDescription")}
         </p>
 
         <div className="mt-4 grid md:grid-cols-3 gap-4 relative">
@@ -165,13 +146,12 @@ export default function DashboardPage() {
 
           <Card className="sticky top-20 self-start h-fit max-h-[calc(100vh-2rem)] overflow-y-auto">
             <CardHeader>
-              <CardTitle>Detected Anomalies</CardTitle>
+              <CardTitle>{t("dashboard.detectedAnomalies")}</CardTitle>
             </CardHeader>
-
             <CardContent className="space-y-2">
               {anomalies.filter((a) => a.is_anomaly).length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  No anomalies detected in the last 90 days.
+                  {t("dashboard.noAnomalies")}
                 </p>
               )}
               {anomalies
@@ -190,12 +170,10 @@ export default function DashboardPage() {
                       className="flex items-center justify-between rounded-md bg-accent p-2"
                     >
                       <div>
-                        <div className="font-medium leading-tight">
-                          {a.date}
-                        </div>
+                        <div className="font-medium leading-tight">{a.date}</div>
                         <div className="text-xs text-muted-foreground leading-3">
-                          {a.actual_kwh.toFixed(1)} kWh actual ·{" "}
-                          {a.predicted_kwh.toFixed(1)} kWh expected
+                          {a.actual_kwh.toFixed(1)} {t("dashboard.kwhActual")} ·{" "}
+                          {a.predicted_kwh.toFixed(1)} {t("dashboard.kwhExpected")}
                         </div>
                       </div>
                       <div
@@ -216,17 +194,12 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* =========================
-  6. RECOMMENDATION ENGINE (FORWARD-LOOKING LAYER)
-  ========================= */}
+      {/* 5. RECOMMENDATION ENGINE */}
       <section>
-        <h2 className="text-2xl">Recommendations</h2>
-
+        <h2 className="text-2xl">{t("dashboard.recommendations")}</h2>
         <p className="text-muted-foreground max-w-lg text-pretty">
-          Small changes based on how you&apos;ve been using energy. Nothing
-          drastic - just things that could quietly lower your bill.
+          {t("dashboard.recommendationsDescription")}
         </p>
-
         <div className="mt-4 space-y-3">
           <RecommendationEngine homeId={homeId} />
         </div>

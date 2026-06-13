@@ -1,13 +1,20 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import createIntlMiddleware from "next-intl/middleware";
+import { routing } from "./i18n/routing";
+
+const intlMiddleware = createIntlMiddleware(routing);
 
 export async function proxy(request: NextRequest) {
+  // Run locale detection/cookie on every request
+  const intlResponse = intlMiddleware(request);
+
   if (process.env.NEXT_PUBLIC_DEV_MODE === "true") {
-    return NextResponse.next({ request });
+    return intlResponse;
   }
 
-  let supabaseResponse = NextResponse.next({ request });
+  let supabaseResponse = intlResponse ?? NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
